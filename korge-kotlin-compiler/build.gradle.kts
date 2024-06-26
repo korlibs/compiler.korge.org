@@ -47,8 +47,11 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class).all {
 }
 
 tasks {
+    val shutdownDaemon by creating(Delete::class) {
+        this.delete(File(System.getProperty("user.home"), ".korge/socket/compiler.socket"))
+    }
     val install by creating(Copy::class) {
-        dependsOn("shadowJar")
+        dependsOn(shutdownDaemon, shadowJar)
         from("build/libs/korge-kotlin-compiler-all.jar")
         rename { "korge-kotlin-compiler.jar" }
         into(System.getProperty("user.home") + "/.korge/compiler")

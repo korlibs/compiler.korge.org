@@ -182,6 +182,9 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
+                KorgeKotlinCompiler(stdout, stderr).compileAllModules(
+                    ProjectParser(File(path)).rootModule.module,
+                )
             }
             .registerCommand("clean", desc = "Removes all the build caches") {
                 val path = it.removeFirstOrNull() ?: "."
@@ -189,6 +192,13 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
                 //KorgeKotlinCompiler.compileModule()
             }
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                KorgeKotlinCompiler(stdout, stderr).compileAndRun(
+                    ProjectParser(File(path)).rootModule.module,
+                )
+            }
+            .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
                 KorgeKotlinCompiler(stdout, stderr).compileAndRun(

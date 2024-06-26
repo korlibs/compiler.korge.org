@@ -3,9 +3,9 @@ package korlibs.korge.kotlincompiler.maven
 import java.io.*
 import java.net.*
 
-fun List<MavenArtifact>.getMavenArtifacts(): Set<File> = this.flatMap { it.getMavenArtifacts() }.toSet()
+fun List<MavenArtifact>.getMavenArtifacts(stdout: PrintStream = System.out): Set<File> = this.flatMap { it.getMavenArtifacts(stdout) }.toSet()
 
-fun MavenArtifact.getMavenArtifacts(explored: MutableSet<MavenArtifact> = mutableSetOf()): Set<File> {
+fun MavenArtifact.getMavenArtifacts(stdout: PrintStream = System.out, explored: MutableSet<MavenArtifact> = mutableSetOf()): Set<File> {
     val explore = ArrayDeque<MavenArtifact>()
     explore += this
     val out = mutableSetOf<MavenArtifact>()
@@ -13,7 +13,7 @@ fun MavenArtifact.getMavenArtifacts(explored: MutableSet<MavenArtifact> = mutabl
         val artifact = explore.removeFirst()
         if (artifact in explored) continue
         explored += artifact
-        val pom = Pom.parse(artifact.copy(extension = "pom").getSingleMavenArtifact())
+        val pom = Pom.parse(artifact.copy(extension = "pom").getSingleMavenArtifact(stdout))
         if (pom.packaging == null || pom.packaging == "jar") {
             out += artifact
         }
@@ -21,15 +21,15 @@ fun MavenArtifact.getMavenArtifacts(explored: MutableSet<MavenArtifact> = mutabl
             explore += dep.artifact
         }
     }
-    return out.map { it.getSingleMavenArtifact() }.toSet()
+    return out.map { it.getSingleMavenArtifact(stdout) }.toSet()
 }
 
-fun MavenArtifact.getSingleMavenArtifact(): File {
+fun MavenArtifact.getSingleMavenArtifact(stdout: PrintStream = System.out): File {
     val file = File(System.getProperty("user.home"), ".m2/repository/${localPath}")
     if (!file.exists()) {
         file.parentFile.mkdirs()
         val url = URL("https://repo1.maven.org/maven2/${localPath}")
-        println("Downloading $url")
+        stdout.println("Downloading $url")
         file.writeBytes(url.readBytes())
     }
     return file

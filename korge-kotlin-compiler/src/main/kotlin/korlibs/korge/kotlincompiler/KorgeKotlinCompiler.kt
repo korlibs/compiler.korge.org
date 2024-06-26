@@ -84,7 +84,15 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
     }
 
     fun runJvm(main: String, classPaths: Collection<File>, envs: Map<String, String> = mapOf()): Int {
-        val allArgs = listOf(JvmMeta.javaExecutablePath, "-cp", classPaths.joinToString(File.pathSeparator), main)
+        val allArgs = buildList {
+            add(JvmMeta.javaExecutablePath)
+
+            //add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:6.0.0-alpha5").getSingleMavenArtifact(stdout).absolutePath}=")
+
+            add("-cp")
+            add(classPaths.joinToString(File.pathSeparator))
+            add(main)
+        }
         //stdout.println(allArgs.joinToString(" "))
         return ProcessBuilder(allArgs)
             .inheritIO()
