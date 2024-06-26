@@ -14,7 +14,7 @@ import kotlin.system.*
 val verbose = System.getenv("KORGE_VERBOSE") == "true"
 //val verbose = true
 //val restartDaemon = false
-val restartDaemon = System.getenv("KORGE_DAEMON_RESTART_ALWAYS") == "true"
+//val restartDaemon = System.getenv("KORGE_DAEMON_RESTART_ALWAYS") == "true"
 
 val USER_HOME by lazy { File(System.getProperty("user.home")) }
 val KORGE_DIR by lazy { File(USER_HOME, ".korge").also { it.mkdirs() } }
@@ -30,9 +30,9 @@ object KorgeKotlinCompilerCLI {
             val socketPath = File(KORGE_DIR, "/socket/compiler.socket")
             socketPath.parentFile.mkdirs()
 
-            if (restartDaemon || args.firstOrNull() == "stop") {
-                socketPath.delete()
-            }
+            //if (restartDaemon || args.firstOrNull() == "stop") {
+            //    socketPath.delete()
+            //}
 
             lateinit var client: SocketChannel
             var startedDaemon = false
