@@ -1,5 +1,6 @@
 package korlibs.korge.kotlincompiler
 
+import korlibs.korge.kotlincompiler.module.*
 import korlibs.korge.kotlincompiler.socket.*
 import korlibs.korge.kotlincompiler.util.*
 import java.io.*
@@ -7,6 +8,8 @@ import java.net.*
 import java.nio.channels.*
 import java.nio.file.*
 import kotlin.system.*
+
+// taskkill /F /IM java.exe /T
 
 val verbose = System.getenv("KORGE_VERBOSE") == "true"
 //val verbose = true
@@ -24,9 +27,9 @@ object KorgeKotlinCompilerCLI {
             KorgeKotlinCompilerCLISimple.main(args)
             return
         } else {
-            val socketPath = File("temp2.socket")
+            val socketPath = File(KORGE_DIR, "compiler.socket")
 
-            if (restartDaemon || args.first() == "stop") {
+            if (restartDaemon || args.firstOrNull() == "stop") {
                 socketPath.delete()
             }
 
@@ -181,11 +184,15 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
             }
             .registerCommand("clean", desc = "Removes all the build caches") {
                 val path = it.removeFirstOrNull() ?: "."
+                File(path, ".korge").deleteRecursively()
                 //KorgeKotlinCompiler.compileModule()
             }
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
+                KorgeKotlinCompiler(stdout, stderr).compileAndRun(
+                    ProjectParser(File(path)).rootModule.module,
+                )
             }
             .registerCommand("package:jvm", desc = "Packages a far jar file for the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."

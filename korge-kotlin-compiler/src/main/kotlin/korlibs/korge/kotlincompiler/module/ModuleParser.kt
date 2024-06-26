@@ -44,32 +44,42 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
             projectDir = moduleDir,
             //name = moduleName,
             moduleDeps = moduleDeps.map { it.module }.toSet(),
-            libs = mavenDeps.map { it.artifact }.toSet(),
+            libs = (
+                listOf(
+                    MavenArtifact("org.jetbrains.kotlin", "kotlin-stdlib", "2.0.0"),
+                    MavenArtifact("com.soywiz.korge", "korge-jvm", "999.0.0.999"),
+                ) + mavenDeps.map { it.artifact }
+            ).toSet(),
         )
     }
 
 
-    fun parse() {
+    fun parse(): Boolean {
         check(moduleDir.exists()) { "'${moduleDir.absolutePath}' doesn't exists"}
-        File(moduleDir, "gradle/libs.versions.toml").takeIfExists()?.let { tryParseLibsVersionsToml(it) }
-        File(moduleDir, "build.gradle.kts").takeIfExists()?.let { parseBuildGradleKts(it) }
-        File(moduleDir, "deps.kproject.yml").takeIfExists()?.let { parseKProjectYml(it) }
-        File(moduleDir, "kproject.yml").takeIfExists()?.let { parseKProjectYml(it) }
-        File(moduleDir, "module.yaml").takeIfExists()?.let { parseModuleYml(it) }
-        File(moduleDir, "project.yaml").takeIfExists()?.let { parseProjectYml(it) }
-        File(moduleDir, "korge.yml").takeIfExists()?.let { parseKorgeYml(it) }
+        var contributions = 0
+        File(moduleDir, "gradle/libs.versions.toml").takeIfExists()?.let { if (tryParseLibsVersionsToml(it)) contributions++ }
+        File(moduleDir, "build.gradle.kts").takeIfExists()?.let { if (parseBuildGradleKts(it)) contributions++ }
+        File(moduleDir, "deps.kproject.yml").takeIfExists()?.let { if (parseKProjectYml(it)) contributions++ }
+        File(moduleDir, "kproject.yml").takeIfExists()?.let { if (parseKProjectYml(it)) contributions++ }
+        File(moduleDir, "module.yaml").takeIfExists()?.let { if (parseModuleYml(it)) contributions++ }
+        File(moduleDir, "project.yaml").takeIfExists()?.let { if (parseProjectYml(it)) contributions++ }
+        File(moduleDir, "korge.yml").takeIfExists()?.let { if (parseKorgeYml(it)) contributions++ }
+        if (contributions == 0) error("Not a KorGE Module : $moduleDir")
+        return contributions > 0
     }
 
-    fun tryParseLibsVersionsToml(file: File) {
+    fun tryParseLibsVersionsToml(file: File): Boolean {
         for (line in file.readLines()) {
             Regex("^korge\\s*=.*").find(line)?.let {
                 val version = Regex("version\\s*=\\s*\"(.*?)\"").find(it.groupValues[0])?.groupValues?.get(1) ?: error("Can't find korge version")
                 korgeVersion = version
+                return true
             }
         }
+        return false
     }
 
-    fun parseDependency(depStr: String) {
+    fun parseDependency(depStr: String): Boolean {
         when {
             depStr.startsWith("https://") -> {
                 // parse this url into owner, repo name, tag, path, and extra hash
@@ -103,9 +113,10 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
                 // Url or file path
             }
         }
+        return true
     }
 
-    fun parseCommonYaml(file: File) {
+    fun parseCommonYaml(file: File): Boolean {
         //println("parseCommonYaml: $file")
         val root = Yaml.decode(file.readText()).dyn
         root["name"].toStringOrNull()?.let { moduleName = it }
@@ -113,33 +124,30 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
         for (dep in root["dependencies"].list) {
             parseDependency(dep.str)
         }
+        return true
     }
 
-    fun parseKProjectYml(file: File) {
-        parseCommonYaml(file)
-    }
+    fun parseKProjectYml(file: File): Boolean = parseCommonYaml(file)
 
-    fun parseKorgeYml(file: File) {
-        parseCommonYaml(file)
-    }
+    fun parseKorgeYml(file: File): Boolean = parseCommonYaml(file)
 
     // AMPER root project
-    fun parseProjectYml(file: File) {
-        parseCommonYaml(file)
-    }
+    fun parseProjectYml(file: File): Boolean = parseCommonYaml(file)
 
     // AMPER module
-    fun parseModuleYml(file: File) {
-        parseCommonYaml(file)
-    }
+    fun parseModuleYml(file: File): Boolean = parseCommonYaml(file)
 
     // Best effort without executing code
-    fun parseBuildGradleKts(file: File) {
+    fun parseBuildGradleKts(file: File): Boolean {
+        var korgeBlockOnce = false
         var korgeBlock = false
         for (line in file.readLines()) {
             val tline = line.trim()
             when {
-                tline.startsWith("korge {") -> korgeBlock = true
+                tline.startsWith("korge {") -> {
+                    korgeBlock = true
+                    korgeBlockOnce = true
+                }
                 tline.startsWith("}") -> korgeBlock = false
                 korgeBlock -> {
                     // id = ""
@@ -147,5 +155,6 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
                 else -> Unit // Do nothing
             }
         }
+        return korgeBlockOnce
     }
 }
