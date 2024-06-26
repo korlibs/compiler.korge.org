@@ -1,6 +1,7 @@
 package korlibs.korge.kotlincompiler.git
 
 import korlibs.korge.kotlincompiler.*
+import korlibs.korge.kotlincompiler.util.*
 import java.io.*
 
 class GitHubRepoRefPath private constructor(val ref: GitHubRepoRef, val path: String, unit: Unit) {
@@ -14,12 +15,10 @@ class GitHubRepoRefPath private constructor(val ref: GitHubRepoRef, val path: St
     fun getArchive(): File {
         if (!localFile.exists()) {
             localFile.parentFile.mkdirs()
+            ProcessBuilder("git", "pull")
+                .directory(ref.repo.getClonedRepo()).inheritIO().start().waitFor()
             ProcessBuilder("git", "archive", "-o", localFile.absolutePath, ref.ref, path)
-            //ProcessBuilder("git", "--help")
-                .directory(ref.repo.getClonedRepo())
-                .inheritIO()
-                .start()
-                .waitFor()
+                .directory(ref.repo.getClonedRepo()).inheritIO().start().waitFor()
         }
         return localFile
     }
@@ -27,6 +26,7 @@ class GitHubRepoRefPath private constructor(val ref: GitHubRepoRef, val path: St
     fun extractTo(folder: File) {
         println(getArchive())
         println(getArchive().exists())
+        TarTools(removeNDirs = path.count { it == '/' } + 1).extractTarGz(getArchive(), folder)
         //TODO("Extract ${getArchive()} to $folder")
     }
 

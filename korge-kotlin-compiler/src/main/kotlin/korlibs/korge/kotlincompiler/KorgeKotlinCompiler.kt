@@ -23,7 +23,7 @@ class KorgeKotlinCompiler {
             println("Running main...")
             println(JvmMeta.javaExecutablePath)
 
-            val libs = filesForMaven(
+            val libs = setOf(
                 MavenArtifact("org.jetbrains.kotlin", "kotlin-stdlib", "2.0.0"),
                 MavenArtifact("com.soywiz.korge", "korge-jvm", "999.0.0.999")
             )
@@ -69,7 +69,7 @@ class KorgeKotlinCompiler {
             val compiler = KorgeKotlinCompiler()
             compiler.rootDir = root
             compiler.sourceDirs = srcDirs.toSet()
-            compiler.libs = module.libs.toSet() + libFiles.toSet()
+            compiler.libs = module.libsFiles.toSet() + libFiles.toSet()
 
             lateinit var result: CompilationResult
             val time = measureTimeMillis {
@@ -84,7 +84,7 @@ class KorgeKotlinCompiler {
         }
 
         fun runModule(module: Module, envs: Map<String, String> = mapOf()) {
-            val allClasspaths: Set<File> = module.allModuleDeps.flatMap { setOf(it.classesDir) + it.resourceDirs + it.libs }.toSet()
+            val allClasspaths: Set<File> = module.allModuleDeps.flatMap { setOf(it.classesDir) + it.resourceDirs + it.libsFiles }.toSet()
             runJvm(module.main, allClasspaths, envs)
         }
 
@@ -97,10 +97,6 @@ class KorgeKotlinCompiler {
                 .startEnsuringDestroyed()
                 .waitFor()
         }
-
-        fun filesForMaven(vararg artifacts: MavenArtifact): Set<File> = artifacts.flatMap { filesForMaven(it) }.toSet()
-        fun filesForMaven(artifacts: List<MavenArtifact>): Set<File> = artifacts.flatMap { filesForMaven(it) }.toSet()
-        fun filesForMaven(artifact: MavenArtifact): Set<File> = MavenTools.getMavenArtifacts(artifact)
     }
 
     var rootDir: File = File("/temp")

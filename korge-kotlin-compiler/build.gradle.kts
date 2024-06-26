@@ -13,6 +13,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-build-tools-api")
     implementation("com.soywiz:korlibs-serialization-jvm:6.0.0-alpha6")
     implementation("com.soywiz:korlibs-dyn-jvm:6.0.0-alpha6")
+    implementation("io.airlift:aircompressor:0.27")
+    implementation("org.apache.commons:commons-compress:1.26.2")
     //api("org.jetbrains.kotlin:kotlin-compiler-embeddable")
     //api("org.jetbrains.kotlin:kotlin-compiler-client-embeddable")
     //api("org.jetbrains.kotlin:kotlin-daemon-embeddable")

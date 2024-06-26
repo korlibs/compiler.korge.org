@@ -176,15 +176,19 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
         val processor = CLIProcessor("KorGE Compiler", "0.0.1-alpha", stdout, stderr)
             .registerCommand("ide", desc = "Opens the IDE installer") { ide() }
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
-                val path = it.removeFirstOrNull() ?: error("folder not specified")
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+            }
+            .registerCommand("clean", desc = "Removes all the build caches") {
+                val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
             }
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
-                val path = it.removeFirstOrNull() ?: error("folder not specified")
+                val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
             }
-            .registerCommand("package:jvm", desc = "Packages a jar file for the specified <folder> containing a KorGE project") {
-                val path = it.removeFirstOrNull() ?: error("folder not specified")
+            .registerCommand("package:jvm", desc = "Packages a far jar file for the specified <folder> containing a KorGE project") {
+                val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
             }
             .registerCommand("wrapper", desc = "Update wrapper to version <version>") {
