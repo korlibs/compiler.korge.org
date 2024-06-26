@@ -3,6 +3,7 @@ package korlibs.korge.kotlincompiler
 import korlibs.korge.kotlincompiler.module.*
 import korlibs.korge.kotlincompiler.socket.*
 import korlibs.korge.kotlincompiler.util.*
+import org.jetbrains.kotlin.buildtools.api.*
 import java.io.*
 import java.net.*
 import java.nio.channels.*
@@ -23,7 +24,7 @@ object KorgeKotlinCompilerCLI {
     @JvmStatic
     fun main(args: Array<String>) {
         if (System.getenv("KORGE_DAEMON") == "false") {
-        //if (true) {
+            //if (true) {
             KorgeKotlinCompilerCLISimple.main(args)
             return
         } else {
@@ -94,7 +95,10 @@ object KorgeKotlinCompilerCLIDaemon {
 
         mainExecutor.submit {
             while (true) {
-                Thread.sleep(10_000L)
+                Thread.sleep(1_000L)
+                if (!File(socketPath).exists()) {
+                    exitProcess(-1) // Socket closed
+                }
                 val elapsed = System.currentTimeMillis() - lastUpdate
                 if (elapsed >= timeoutSeconds * 1000L) {
                     System.err.println("NO MORE ACTIONS IN $timeoutSeconds seconds")
@@ -151,6 +155,9 @@ object KorgeKotlinCompilerCLIDaemon {
                             }
                         }
                     }
+                } catch (e: ConnectException) {
+                    System.err.println("Socket likely closed")
+                    exitProcess(-1)
                 } catch (e: Throwable) {
                     e.printStackTrace()
                     Thread.sleep(100L)
@@ -177,8 +184,9 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
     fun main(args: Array<String>) {
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$stdout, stderr=$stderr")
 
-        val processor = CLIProcessor("KorGE Compiler", "0.0.1-alpha", stdout, stderr)
+        val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", "0.0.1-alpha", stdout, stderr)
             .registerCommand("forge", desc = "Opens the KorGE Forge installer") { ide() }
+            .registerCommand("version", desc = "Displays compiler version") { stdout.println(KorgeKotlinCompiler.getCompilerVersion()) }
             //.registerCommand("idea", desc = "Creates IDEA modules") { }
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
@@ -192,6 +200,11 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
                 File(path, ".korge").deleteRecursively()
                 //KorgeKotlinCompiler.compileModule()
             }
+            .registerCommand("new", desc = "Creates a new KorGE project in the specified <folder>") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
@@ -202,6 +215,7 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
             .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
+                TODO()
                 KorgeKotlinCompiler(stdout, stderr).compileAndRun(
                     ProjectParser(File(path)).rootModule.module,
                 )
@@ -209,11 +223,13 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
             .registerCommand("package:jvm", desc = "Packages a far jar file for the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
+                TODO()
             }
             .registerCommand("wrapper", desc = "Update wrapper to version <version>") {
                 val version = it.removeFirstOrNull() ?: error("version not specified")
                 //KorgeKotlinCompiler.compileModule()
                 stdout.println("[FAKE]: Updating to... $version")
+                TODO()
             }
             .registerCommand("stop", desc = "Stops the daemon") {
                 throw ExitProcessException(0)
@@ -235,6 +251,7 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
                     .redirectTo(stdout, stderr)
                     .waitFor()
             }
+
             else -> {
                 val dir = File(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
                 val data = URL("https://forge.korge.org/install-korge-forge.sh").readBytes()

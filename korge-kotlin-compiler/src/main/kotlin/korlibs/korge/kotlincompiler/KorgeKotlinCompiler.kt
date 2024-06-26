@@ -38,6 +38,17 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
             //repeat(3) { compiler.compileAllModules(snakeModule) }
             compiler.compileAndRun(snakeModule)
         }
+
+        private val service by lazy { CompilationService.loadImplementation(ClassLoader.getSystemClassLoader()) }
+        //private val service = CompilationService.loadImplementation(KorgeKotlinCompiler::class.java.classLoader)
+        //private val service = CompilationService.loadImplementation(ClassLoader.getPlatformClassLoader())
+        private val executionConfig by lazy {
+            service.makeCompilerExecutionStrategyConfiguration()
+                .useInProcessStrategy()
+        }
+
+        fun getCompilerVersion(): String = service.getCompilerVersion()
+
     }
 
     fun compileAndRun(module: Module, envs: Map<String, String> = mapOf()) {
@@ -116,11 +127,6 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
         }
 
     private var snapshot: ClasspathSnapshotBasedIncrementalCompilationApproachParameters? = null
-    private val service = CompilationService.loadImplementation(ClassLoader.getSystemClassLoader())
-    //private val service = CompilationService.loadImplementation(KorgeKotlinCompiler::class.java.classLoader)
-    //private val service = CompilationService.loadImplementation(ClassLoader.getPlatformClassLoader())
-    private val executionConfig = service.makeCompilerExecutionStrategyConfiguration()
-        .useInProcessStrategy()
 
     private val icWorkingDir by lazy { File(buildDirectory, "ic").also { it.mkdirs() } }
     private val icCachesDir by lazy { File(icWorkingDir, "caches").also { it.mkdirs() } }

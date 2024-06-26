@@ -23,7 +23,7 @@ class CLIProcessor(
     }
 
     init {
-        registerCommand("help", "-help", "--help", "/?", "-?") { printHelp() }
+        registerCommand("help", "-help", "--help", "-h", "/?", "-?") { printHelp() }
     }
 
     fun printHelp() {
