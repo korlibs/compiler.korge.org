@@ -178,7 +178,8 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$stdout, stderr=$stderr")
 
         val processor = CLIProcessor("KorGE Compiler", "0.0.1-alpha", stdout, stderr)
-            .registerCommand("ide", desc = "Opens the IDE installer") { ide() }
+            .registerCommand("forge", desc = "Opens the KorGE Forge installer") { ide() }
+            //.registerCommand("idea", desc = "Creates IDEA modules") { }
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
