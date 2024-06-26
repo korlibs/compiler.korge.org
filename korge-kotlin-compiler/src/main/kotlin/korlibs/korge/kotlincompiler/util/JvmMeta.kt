@@ -30,7 +30,7 @@ object JvmMeta {
             addAll(args)
         }
 
-        println("Command: " + java.lang.String.join(" ", command))
+        //println("Command: " + java.lang.String.join(" ", command))
 
         val processBuilder = ProcessBuilder(command)
         if (inheritIO) processBuilder.inheritIO()
