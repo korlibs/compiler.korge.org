@@ -13,6 +13,9 @@ val verbose = System.getenv("KORGE_VERBOSE") == "true"
 //val restartDaemon = false
 val restartDaemon = System.getenv("KORGE_DAEMON_RESTART_ALWAYS") == "true"
 
+val USER_HOME by lazy { File(System.getProperty("user.home")) }
+val KORGE_DIR by lazy { File(USER_HOME, ".korge").also { it.mkdirs() } }
+
 object KorgeKotlinCompilerCLI {
     @JvmStatic
     fun main(args: Array<String>) {
@@ -22,12 +25,13 @@ object KorgeKotlinCompilerCLI {
             return
         } else {
             val socketPath = File("temp2.socket")
-            lateinit var client: SocketChannel
-            var startedDaemon = false
 
-            if (restartDaemon) {
+            if (restartDaemon || args.first() == "stop") {
                 socketPath.delete()
             }
+
+            lateinit var client: SocketChannel
+            var startedDaemon = false
 
             //Runtime.getRuntime().exec("taskkill /F /IM java.exe /T").waitFor()
 
@@ -121,8 +125,13 @@ object KorgeKotlinCompilerCLIDaemon {
 
                                                 //stdout.println("CALLING CLI")
                                                 try {
-                                                    KorgeKotlinCompilerCLISimple.main(args.toTypedArray(), stdout, stderr)
+                                                    KorgeKotlinCompilerCLISimple(stdout, stderr).main(args.toTypedArray())
                                                     //stdout.println("AFTER CALLING CLI")
+                                                } catch (e: ExitProcessException) {
+                                                    socket.writePacket(Packet(Packet.TYPE_END))
+                                                    Thread.sleep(50L)
+                                                    socket.close()
+                                                    exitProcess(e.exitCode)
                                                 } catch (e: Throwable) {
                                                     //stdout.println("EXCEPTION CLI")
                                                     e.printStackTrace(stderr)
@@ -150,91 +159,65 @@ object KorgeKotlinCompilerCLIDaemon {
     }
 }
 
-object KorgeKotlinCompilerCLISimple {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        main(args, System.out, System.err)
+class ExitProcessException(val exitCode: Int) : Exception()
+
+class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val stderr: PrintStream = System.err) {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            KorgeKotlinCompilerCLISimple(System.out, System.err).main(args)
+        }
     }
 
-    @JvmStatic
-    fun main(args: Array<String>, stdout: PrintStream, stderr: PrintStream) {
+    @JvmName("main2")
+    fun main(args: Array<String>) {
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$stdout, stderr=$stderr")
 
         val processor = CLIProcessor("KorGE Compiler", "0.0.1-alpha", stdout, stderr)
-            .registerCommand("ide", desc = "Opens the IDE installer") {
-                when (OS.CURRENT) {
-                    OS.WINDOWS -> {
-                        val userHome = File(System.getProperty("user.home"))
-                        val korgeDir = File(userHome, ".korge").also { it.mkdirs() }
-                        val downloadsDir = File(userHome, "Downloads")
-                        val dir = downloadsDir.takeIf { it.isDirectory } ?: korgeDir
-                        val data = URL("https://forge.korge.org/install-korge-forge.cmd").readBytes()
-                        File(dir, "install-korge-forge.cmd").writeBytes(data)
-                        val process = ProcessBuilder()
-                            .command("cmd", "/c", "install-korge-forge.cmd")
-                            .directory(dir)
-                            .start()
-                        process.redirectTo(stdout, stderr)
-                        process.waitFor()
-                    }
-                    OS.LINUX -> TODO()
-                    OS.MACOS -> TODO()
-                }
+            .registerCommand("ide", desc = "Opens the IDE installer") { ide() }
+            .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
+                val path = it.removeFirstOrNull() ?: error("folder not specified")
+                //KorgeKotlinCompiler.compileModule()
             }
-            .registerCommand("exit", desc = "Stops the daemon") {
-                exitProcess(0)
+            .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
+                val path = it.removeFirstOrNull() ?: error("folder not specified")
+                //KorgeKotlinCompiler.compileModule()
+            }
+            .registerCommand("package:jvm", desc = "Packages a jar file for the specified <folder> containing a KorGE project") {
+                val path = it.removeFirstOrNull() ?: error("folder not specified")
+                //KorgeKotlinCompiler.compileModule()
+            }
+            .registerCommand("stop", desc = "Stops the daemon") {
+                throw ExitProcessException(0)
             }
 
         processor.process(args)
+    }
 
-        //val runtimeMxBean = ManagementFactory.getRuntimeMXBean()
-        //val arguments = runtimeMxBean.inputArguments
-        //stdout.println(args.toList())
-        //stdout.println(ProcessHandle.current()
-        //    .info()
-        //    .command()
-        //    .orElseThrow())
-        //stdout.println(System.getProperty("java.class.path"))
-
-        /*
-        return
-
-        for (line in System.`in`.bufferedReader().lineSequence()) {
-            val command = line.substringBefore(' ')
-            val params = line.substringAfter(' ', "")
-            when (command) {
-                "listen" -> {
-                    val socketFile = File("$params.socket")
-                    val pidFile = File("$params.pid")
-                    val currentPid = ProcessHandle.current().pid()
-                    pidFile.writeText("$currentPid")
-                    //println("Listening on $currentPid")
-                    TODO()
-                }
-                "ide" -> {
-                    System.exit(0)
-                }
-                "exit" -> {
-                    System.exit(0)
-                }
-                "compile" -> {
-                }
-                "run" -> {
-                }
-                "stop" -> {
-                }
-                "package:jvm" -> {
-                }
-                //"package:js" -> {
-                //}
-                //"package:wasm" -> {
-                //}
-                //"package:ios" -> {
-                //}
-                //"package:android" -> {
-                //}
+    fun ide() {
+        when (OS.CURRENT) {
+            OS.WINDOWS -> {
+                val dir = File(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
+                val data = URL("https://forge.korge.org/install-korge-forge.cmd").readBytes()
+                File(dir, "install-korge-forge.cmd").writeBytes(data)
+                ProcessBuilder()
+                    .command("cmd", "/c", "install-korge-forge.cmd")
+                    .directory(dir)
+                    .start()
+                    .redirectTo(stdout, stderr)
+                    .waitFor()
+            }
+            else -> {
+                val dir = File(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
+                val data = URL("https://forge.korge.org/install-korge-forge.sh").readBytes()
+                File(dir, "install-korge-forge.sh").writeBytes(data)
+                ProcessBuilder()
+                    .command("sh", "install-korge-forge.sh")
+                    .directory(dir)
+                    .start()
+                    .redirectTo(stdout, stderr)
+                    .waitFor()
             }
         }
-        */
     }
 }

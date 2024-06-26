@@ -1,8 +1,6 @@
 package korlibs.korge.kotlincompiler.util
 
-import java.io.OutputStream
-import java.io.PrintStream
-import java.util.concurrent.ThreadPoolExecutor
+import java.io.*
 
 fun ProcessBuilder.startEnsuringDestroyed(shutdownHook: Boolean = true): Process {
     val process = start()
@@ -10,17 +8,24 @@ fun ProcessBuilder.startEnsuringDestroyed(shutdownHook: Boolean = true): Process
     return process
 }
 
-fun Process.redirectTo(out: OutputStream, err: OutputStream) {
+fun Process.redirectTo(out: OutputStream, err: OutputStream): Process {
     mainExecutor.execute {
         while (true) {
             val available = inputStream.available()
-            out.write(inputStream.readNBytes(maxOf(available, 1)))
+            val bytes = inputStream.readNBytes(maxOf(available, 1))
+            //if (bytes.isEmpty()) break
+            out.write(bytes)
+            Thread.sleep(1L)
         }
     }
     mainExecutor.execute {
         while (true) {
             val available = errorStream.available()
-            err.write(errorStream.readNBytes(maxOf(available, 1)))
+            val bytes = inputStream.readNBytes(maxOf(available, 1))
+            //if (bytes.isEmpty()) break
+            err.write(bytes)
+            Thread.sleep(1L)
         }
     }
+    return this
 }
