@@ -187,6 +187,11 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
                 val path = it.removeFirstOrNull() ?: error("folder not specified")
                 //KorgeKotlinCompiler.compileModule()
             }
+            .registerCommand("wrapper", desc = "Update wrapper to version <version>") {
+                val version = it.removeFirstOrNull() ?: error("version not specified")
+                //KorgeKotlinCompiler.compileModule()
+                stdout.println("[FAKE]: Updating to... $version")
+            }
             .registerCommand("stop", desc = "Stops the daemon") {
                 throw ExitProcessException(0)
             }
