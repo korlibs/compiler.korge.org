@@ -205,6 +205,43 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
                 //KorgeKotlinCompiler.compileModule()
                 TODO()
             }
+            .registerCommand("warm", desc = "Performs a warming-up of the daemon") {
+                val tempFile = File.createTempFile("temp", "kotlin")
+                tempFile.delete()
+                tempFile.mkdirs()
+
+                File(tempFile, "module.yaml").also { it.parentFile.mkdirs() }.writeText("dependencies:")
+                File(tempFile, "src/main.kt").also { it.parentFile.mkdirs() }.writeText("""
+                    fun main() { println("Hello, World! ${'$'}{Demo.DEMO}") }
+                    interface MyInt {
+                        fun test() = 10
+                        companion object : MyInt
+                    } 
+                    open class Test : MyInt { }
+                    class Demo : Test(), MyInt by MyInt {
+                        override fun test() = 20 
+                        companion object {
+                            val DEMO get() = 10.demo
+                            val Int.demo get() = this + 1
+                        }
+                    }
+                """.trimIndent())
+
+                KorgeKotlinCompiler(stdout, stderr).compileAllModules(
+                    ProjectParser(tempFile).rootModule.module,
+                )
+                //tempFile.writeText("fun main() { println(\"Hello, World!\") }")
+                //KorgeKotlinCompiler().also {
+                //    it.sourceDirs
+                //}.compileJvm()
+                //tempFile.delete()
+                //System.getProperty("")
+                //val path = it.removeFirstOrNull() ?: "."
+                ////KorgeKotlinCompiler.compileModule()
+                //KorgeKotlinCompiler(stdout, stderr).compileAndRun(
+                //    ProjectParser(File(path)).rootModule.module,
+                //)
+            }
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()

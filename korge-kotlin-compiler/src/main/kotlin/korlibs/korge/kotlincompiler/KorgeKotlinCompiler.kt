@@ -62,9 +62,7 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
         }
     }
 
-    fun compileModule(
-        module: Module
-    ) {
+    fun compileModule(module: Module) {
         val srcDirs = module.srcDirs
         val resourcesDirs = module.resourceDirs
         val libFiles = arrayListOf<File>()
