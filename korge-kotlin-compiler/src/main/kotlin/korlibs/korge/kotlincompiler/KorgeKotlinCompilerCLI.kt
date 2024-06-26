@@ -27,7 +27,8 @@ object KorgeKotlinCompilerCLI {
             KorgeKotlinCompilerCLISimple.main(args)
             return
         } else {
-            val socketPath = File(KORGE_DIR, "compiler.socket")
+            val socketPath = File(KORGE_DIR, "/socket/compiler.socket")
+            socketPath.parentFile.mkdirs()
 
             if (restartDaemon || args.firstOrNull() == "stop") {
                 socketPath.delete()

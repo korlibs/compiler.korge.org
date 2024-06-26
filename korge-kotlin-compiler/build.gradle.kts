@@ -46,6 +46,15 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class).all {
     }
 }
 
+tasks {
+    val install by creating(Copy::class) {
+        dependsOn("shadowJar")
+        from("build/libs/korge-kotlin-compiler-all.jar")
+        rename { "korge-kotlin-compiler.jar" }
+        into(System.getProperty("user.home") + "/.korge/compiler")
+    }
+}
+
 application {
     //mainClass.set("korlibs.korge.kotlincompiler.KorgeKotlinCompiler")
     mainClass.set("korlibs.korge.kotlincompiler.KorgeKotlinCompilerCLI")
