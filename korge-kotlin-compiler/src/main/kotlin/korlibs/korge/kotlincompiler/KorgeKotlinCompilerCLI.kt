@@ -34,7 +34,7 @@ object KorgeKotlinCompilerCLI {
             if (System.getenv("KORGE_DAEMON") == "false") {
                 KorgeKotlinCompilerCLISimple(currentDir, StdPipes).main(args)
             } else {
-                val socketPath = File(KORGE_DIR, "/socket/compiler.socket")
+                val socketPath = File(KORGE_DIR, "/socket/compiler-${BuildConfig.KORGE_COMPILER_VERSION}.socket")
                 socketPath.parentFile.mkdirs()
 
                 //if (restartDaemon || args.firstOrNull() == "stop") {
