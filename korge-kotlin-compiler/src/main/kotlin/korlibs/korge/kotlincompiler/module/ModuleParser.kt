@@ -15,6 +15,11 @@ open class ProjectParser(val projectDir: File) {
     val rootModule by lazy { module(projectDir) }
 
     open fun artifactTransformer(artifact: MavenArtifact): MavenArtifact {
+        var artifact = artifact
+        if (artifact.group == "com.soywiz.korlibs.korge2" && artifact.name == "korge") {
+            artifact = artifact.copy(group = "com.soywiz.korge", name = "korge")
+        }
+
         if (artifact.version == "") {
             return artifact.copy(version = "999.0.0.999")
         }

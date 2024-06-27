@@ -76,8 +76,14 @@ object KorgeKotlinCompilerCLI {
                 val packet = client.readPacket()
                 if (verbose) println("[CLIENT] Received packet $packet")
                 when (packet.type) {
-                    Packet.TYPE_STDOUT -> System.out.print(packet.data.decodeToString())
-                    Packet.TYPE_STDERR -> System.err.print(packet.data.decodeToString())
+                    Packet.TYPE_STDOUT -> {
+                        System.out.print(packet.data.decodeToString())
+                        System.out.flush()
+                    }
+                    Packet.TYPE_STDERR -> {
+                        System.err.print(packet.data.decodeToString())
+                        System.err.flush()
+                    }
                     Packet.TYPE_END -> client.close()
                 }
             }

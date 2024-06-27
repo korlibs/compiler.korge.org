@@ -220,9 +220,9 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
         filesTxtFile.writeText(saveFileToTime(allFiles))
         val sourcesChanges = getModifiedFiles(oldFiles, allFiles)
 
-        if (sourcesChanges.removedFiles.isEmpty() && sourcesChanges.modifiedFiles.isEmpty()) {
-            return CompilationResult.COMPILATION_SUCCESS
-        }
+        //if (sourcesChanges.removedFiles.isEmpty() && sourcesChanges.modifiedFiles.isEmpty()) {
+        //    return CompilationResult.COMPILATION_SUCCESS
+        //}
 
         if (snapshot == null) {
             snapshot = createSnapshots()
@@ -236,6 +236,31 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
             projectId = ProjectId.ProjectUUID(UUID.randomUUID()),
             strategyConfig = executionConfig,
             compilationConfig = service.makeJvmCompilationConfiguration().also { compilationConfig ->
+                compilationConfig.useLogger(object : KotlinLogger {
+                    override val isDebugEnabled: Boolean get() = false
+
+                    override fun debug(msg: String) {
+                        stdout.println("d: $msg")
+                    }
+
+                    override fun error(msg: String, throwable: Throwable?) {
+                        stderr.println("e: $msg")
+                        throwable?.printStackTrace(stderr)
+                    }
+
+                    override fun info(msg: String) {
+                        stdout.println("i: $msg")
+                    }
+
+                    override fun lifecycle(msg: String) {
+                        stdout.println("l: $msg")
+                    }
+
+                    override fun warn(msg: String) {
+                        stdout.println("w: $msg")
+                    }
+
+                })
                 compilationConfig.useIncrementalCompilation(
                     icCachesDir,
                     sourcesChanges,
@@ -286,10 +311,13 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
         val modified = arrayListOf<File>()
         val removed = arrayListOf<File>()
         for ((file, newTime) in new) {
-            if (file !in old) {
-                removed += file
-            } else if (old[file] != newTime) {
+            if (old[file] != newTime) {
                 modified += file
+            }
+        }
+        for ((file, oldTime) in old) {
+            if (file !in new) {
+                removed += file
             }
         }
         return SourcesChanges.Known(modified, removed)
