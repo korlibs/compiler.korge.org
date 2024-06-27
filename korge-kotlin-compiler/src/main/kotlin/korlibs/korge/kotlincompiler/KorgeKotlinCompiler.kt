@@ -228,9 +228,7 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
             snapshot = createSnapshots()
         }
 
-        stdout.println("CHANGES:")
-        stdout.println("- MODIFIED: ${sourcesChanges.modifiedFiles.toList()}")
-        stdout.println("- REMOVED: ${sourcesChanges.removedFiles.toList()}")
+        stdout.println("CHANGES for $rootDir -> MODIFIED: ${sourcesChanges.modifiedFiles.toList()}, REMOVED: ${sourcesChanges.removedFiles.toList()}")
 
         return service.compileJvm(
             projectId = ProjectId.ProjectUUID(UUID.randomUUID()),
@@ -240,24 +238,24 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
                     override val isDebugEnabled: Boolean get() = false
 
                     override fun debug(msg: String) {
-                        stdout.println("d: $msg")
+                        if (verbose) stdout.println(msg)
                     }
 
                     override fun error(msg: String, throwable: Throwable?) {
-                        stderr.println("e: $msg")
+                        stderr.println(msg)
                         throwable?.printStackTrace(stderr)
                     }
 
                     override fun info(msg: String) {
-                        stdout.println("i: $msg")
+                        if (verbose) stdout.println(msg)
                     }
 
                     override fun lifecycle(msg: String) {
-                        stdout.println("l: $msg")
+                        stdout.println(msg)
                     }
 
                     override fun warn(msg: String) {
-                        stdout.println("w: $msg")
+                        stdout.println(msg)
                     }
 
                 })

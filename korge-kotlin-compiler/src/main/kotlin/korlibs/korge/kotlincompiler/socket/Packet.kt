@@ -57,7 +57,7 @@ fun OutputStream.writeStringLen(value: String) {
     write(value.encodeToByteArray())
 }
 
-fun SocketChannel.writePacket(packet: Packet) {
+fun SocketChannel.writePacket(packet: Packet) = synchronized(this) {
     //println("Writing packet=$packet")
     val header = ByteBuffer.allocate(8)
     header.putInt(packet.type)
@@ -79,7 +79,7 @@ fun SocketChannel.readFull(buffer: ByteBuffer) {
     }
 }
 
-fun SocketChannel.readPacket(): Packet {
+fun SocketChannel.readPacket(): Packet = synchronized(this) {
     val header = ByteBuffer.allocate(8)
     readFull(header)
     header.flip()

@@ -9,22 +9,26 @@ fun ProcessBuilder.startEnsuringDestroyed(shutdownHook: Boolean = true): Process
 }
 
 fun Process.redirectTo(out: OutputStream, err: OutputStream): Process {
-    mainExecutor.execute {
+    virtualExecutor.execute {
         while (true) {
             val available = inputStream.available()
             val bytes = inputStream.readNBytes(maxOf(available, 1))
-            //if (bytes.isEmpty()) break
-            out.write(bytes)
-            Thread.sleep(1L)
+            if (bytes.isNotEmpty()) {
+                //if (bytes.isEmpty()) break
+                out.write(bytes)
+            }
+            Thread.sleep(100L)
         }
     }
-    mainExecutor.execute {
+    virtualExecutor.execute {
         while (true) {
             val available = errorStream.available()
-            val bytes = inputStream.readNBytes(maxOf(available, 1))
-            //if (bytes.isEmpty()) break
-            err.write(bytes)
-            Thread.sleep(1L)
+            val bytes = errorStream.readNBytes(maxOf(available, 1))
+            if (bytes.isNotEmpty()) {
+                //if (bytes.isEmpty()) break
+                err.write(bytes)
+            }
+            Thread.sleep(100L)
         }
     }
     return this

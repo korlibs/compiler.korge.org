@@ -3,7 +3,6 @@ package korlibs.korge.kotlincompiler
 import korlibs.korge.kotlincompiler.module.*
 import korlibs.korge.kotlincompiler.socket.*
 import korlibs.korge.kotlincompiler.util.*
-import org.jetbrains.kotlin.buildtools.api.*
 import java.io.*
 import java.net.*
 import java.nio.channels.*
@@ -12,7 +11,7 @@ import kotlin.system.*
 
 // taskkill /F /IM java.exe /T
 
-val verbose = System.getenv("KORGE_VERBOSE") == "true"
+val verbose by lazy { System.getenv("KORGE_VERBOSE") == "true" }
 //val verbose = true
 //val restartDaemon = false
 //val restartDaemon = System.getenv("KORGE_DAEMON_RESTART_ALWAYS") == "true"
@@ -77,12 +76,14 @@ object KorgeKotlinCompilerCLI {
                 if (verbose) println("[CLIENT] Received packet $packet")
                 when (packet.type) {
                     Packet.TYPE_STDOUT -> {
-                        System.out.print(packet.data.decodeToString())
+                        System.out.write(packet.data)
                         System.out.flush()
                     }
                     Packet.TYPE_STDERR -> {
-                        System.err.print(packet.data.decodeToString())
+                        System.err.print("\u001b[91m")
+                        System.err.write(packet.data)
                         System.err.flush()
+                        System.err.print("\u001b[m")
                     }
                     Packet.TYPE_END -> client.close()
                 }
@@ -103,7 +104,7 @@ object KorgeKotlinCompilerCLIDaemon {
 
         //val threads = Executors.newCachedThreadPool()
 
-        mainExecutor.submit {
+        virtualExecutor.submit {
             while (true) {
                 Thread.sleep(1_000L)
                 if (!File(socketPath).exists()) {
@@ -127,7 +128,7 @@ object KorgeKotlinCompilerCLIDaemon {
                     val socket = server.accept()
                     println("[DAEMON]: Accepted connection")
                     lastUpdate = System.currentTimeMillis()
-                    mainExecutor.submit {
+                    virtualExecutor.submit {
                         while (socket.isOpen) {
                             lastUpdate = System.currentTimeMillis()
                             val packet = socket.readPacket()
@@ -140,6 +141,9 @@ object KorgeKotlinCompilerCLIDaemon {
                                             PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
                                                 val stdout = PrintStream(stdoutStream)
                                                 val stderr = PrintStream(stderrStream)
+
+                                                //System.setOut(stdout)
+                                                //System.setErr(stderr)
 
                                                 //stdout.println("CALLING CLI")
                                                 try {
