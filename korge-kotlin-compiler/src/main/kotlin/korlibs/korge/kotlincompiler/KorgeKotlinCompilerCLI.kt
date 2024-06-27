@@ -45,21 +45,25 @@ object KorgeKotlinCompilerCLI {
                 try {
                     client = SocketChannel.open(UnixDomainSocketAddress.of(socketPath.toPath()))
                     break
-                } catch (e: ConnectException) {
-                    if (!startedDaemon) {
-                        startedDaemon = true
-                        if (verbose) println("[CLIENT] Starting daemon...")
-                        //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = true)
-                        JvmMeta.runOtherEntryPointSameClassPath(
-                            KorgeKotlinCompilerCLIDaemon::class,
-                            socketPath.absolutePath,
-                            waitEnd = false,
-                            shutdownHook = false,
-                            inheritIO = false
-                        )
+                } catch (e: Throwable) {
+                    if (e is ConnectException || e is SocketException) {
+                        if (!startedDaemon) {
+                            startedDaemon = true
+                            if (verbose) println("[CLIENT] Starting daemon...")
+                            //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = true)
+                            JvmMeta.runOtherEntryPointSameClassPath(
+                                KorgeKotlinCompilerCLIDaemon::class,
+                                socketPath.absolutePath,
+                                waitEnd = false,
+                                shutdownHook = false,
+                                inheritIO = false
+                            )
+                        }
+                        //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = false)
+                        Thread.sleep(50L)
+                    } else {
+                        throw e
                     }
-                    //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = false)
-                    Thread.sleep(50L)
                 }
             }
 

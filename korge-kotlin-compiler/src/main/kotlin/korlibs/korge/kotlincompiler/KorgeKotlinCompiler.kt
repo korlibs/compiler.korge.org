@@ -98,6 +98,26 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
 
             //add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:6.0.0-alpha5").getSingleMavenArtifact(stdout).absolutePath}=")
 
+
+            val addOpens = buildList {
+                add("java.desktop/sun.java2d.opengl")
+                add("java.desktop/java.awt")
+                add("java.desktop/sun.awt")
+                if (OS.CURRENT == OS.MACOS) {
+                    add("java.desktop/sun.lwawt")
+                    add("java.desktop/sun.lwawt.macosx")
+                    add("java.desktop/com.apple.eawt")
+                    add("java.desktop/com.apple.eawt.event")
+                }
+                if (OS.CURRENT == OS.LINUX) {
+                    add("java.desktop/sun.awt.X11")
+                }
+            }
+
+            for (addOpen in addOpens) {
+                add("--add-opens=$addOpen=ALL-UNNAMED")
+            }
+
             add("-cp")
             add(classPaths.joinToString(File.pathSeparator))
             add(main)
