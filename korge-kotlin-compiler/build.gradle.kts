@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.*
+import org.gradle.api.tasks.testing.logging.*
 import org.jetbrains.kotlin.gradle.dsl.*
 
 plugins {
@@ -88,4 +89,17 @@ tasks {
     //    //relocate("com.somepackage", "shadow.com.somepackage")
     //    this.entryCompression = ZipEntryCompression.STORED
     //}
+}
+
+tasks.withType(org.gradle.api.tasks.testing.AbstractTestTask::class) {
+    testLogging {
+        events = mutableSetOf(
+            TestLogEvent.SKIPPED,
+            TestLogEvent.FAILED,
+            TestLogEvent.STANDARD_OUT, TestLogEvent.STANDARD_ERROR
+        )
+        exceptionFormat = TestExceptionFormat.FULL
+        showStandardStreams = true
+        showStackTraces = true
+    }
 }
