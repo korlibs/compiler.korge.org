@@ -15,7 +15,7 @@ import kotlin.time.*
 
 // https://github.com/JetBrains/kotlin/tree/master/compiler/build-tools/kotlin-build-tools-api
 // https://github.com/JetBrains/kotlin/blob/bc1ddd8205f6107c7aec87a9fb3bd7713e68902d/compiler/build-tools/kotlin-build-tools-api-tests/src/main/kotlin/compilation/model/JvmModule.kt
-class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes) {
+class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = false) {
     val stdout get() = pipes.out
     val stderr get() = pipes.err
 
@@ -100,8 +100,9 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes) {
         val allArgs = buildList {
             add(JvmMeta.javaExecutablePath)
 
-            //add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:6.0.0-alpha5").getSingleMavenArtifact(stdout).absolutePath}=")
-
+            if (reload) {
+                add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:6.0.0-alpha5").getSingleMavenArtifact(stdout).absolutePath}=")
+            }
 
             val addOpens = buildList {
                 add("java.desktop/sun.java2d.opengl")
@@ -128,10 +129,9 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes) {
         }
         //stdout.println(allArgs.joinToString(" "))
         return ProcessBuilder(allArgs)
-            .also { it.environment().putAll(envs) }
+            .also { it.environment().putAll(envs + mapOf("DEBUG_KORGE_RELOAD_AGENT" to "true")) }
             .startEnsuringDestroyed()
-            .redirectTo(stdout, stderr)
-            .waitFor()
+            .redirectToWaitFor(pipes)
     }
 
     var rootDir: File = File("/temp")

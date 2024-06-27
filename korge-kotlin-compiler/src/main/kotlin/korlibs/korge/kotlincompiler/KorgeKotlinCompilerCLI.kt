@@ -7,6 +7,7 @@ import java.io.*
 import java.net.*
 import java.nio.channels.*
 import java.nio.file.*
+import java.util.concurrent.*
 import kotlin.system.*
 
 // taskkill /F /IM java.exe /T
@@ -22,72 +23,80 @@ val KORGE_DIR by lazy { File(USER_HOME, ".korge").also { it.mkdirs() } }
 object KorgeKotlinCompilerCLI {
     @JvmStatic
     fun main(args: Array<String>) {
-        if (System.getenv("KORGE_DAEMON") == "false") {
-            //if (true) {
-            KorgeKotlinCompilerCLISimple.main(args)
-            return
-        } else {
-            val socketPath = File(KORGE_DIR, "/socket/compiler.socket")
-            socketPath.parentFile.mkdirs()
+        //RecursiveDirectoryWatcher.watch(File("../korge-kotlin-compiler/src")) { println(it) } .await()
+        //RecursiveDirectoryWatcher.watch(File("..")) { println(it) }.await()
 
-            //if (restartDaemon || args.firstOrNull() == "stop") {
-            //    socketPath.delete()
-            //}
+        try {
+            if (System.getenv("KORGE_DAEMON") == "false") {
+                KorgeKotlinCompilerCLISimple.main(args)
+            } else {
+                val socketPath = File(KORGE_DIR, "/socket/compiler.socket")
+                socketPath.parentFile.mkdirs()
 
-            lateinit var client: SocketChannel
-            var startedDaemon = false
+                //if (restartDaemon || args.firstOrNull() == "stop") {
+                //    socketPath.delete()
+                //}
 
-            //Runtime.getRuntime().exec("taskkill /F /IM java.exe /T").waitFor()
+                lateinit var client: SocketChannel
+                var startedDaemon = false
 
-            if (verbose) println("[CLIENT] Connecting to socket...")
-            for (n in 0 until 20) {
-                try {
-                    client = SocketChannel.open(UnixDomainSocketAddress.of(socketPath.toPath()))
-                    break
-                } catch (e: Throwable) {
-                    if (e is ConnectException || e is SocketException) {
-                        if (!startedDaemon) {
-                            startedDaemon = true
-                            if (verbose) println("[CLIENT] Starting daemon...")
-                            //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = true)
-                            JvmMeta.runOtherEntryPointSameClassPath(
-                                KorgeKotlinCompilerCLIDaemon::class,
-                                socketPath.absolutePath,
-                                waitEnd = false,
-                                shutdownHook = false,
-                                inheritIO = false
-                            )
+                //Runtime.getRuntime().exec("taskkill /F /IM java.exe /T").waitFor()
+
+                if (verbose) println("[CLIENT] Connecting to socket...")
+                for (n in 0 until 20) {
+                    try {
+                        client = SocketChannel.open(UnixDomainSocketAddress.of(socketPath.toPath()))
+                        break
+                    } catch (e: Throwable) {
+                        if (e is ConnectException || e is SocketException) {
+                            if (!startedDaemon) {
+                                startedDaemon = true
+                                if (verbose) println("[CLIENT] Starting daemon...")
+                                //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = true)
+                                JvmMeta.runOtherEntryPointSameClassPath(
+                                    KorgeKotlinCompilerCLIDaemon::class,
+                                    socketPath.absolutePath,
+                                    waitEnd = false,
+                                    shutdownHook = false,
+                                    inheritIO = false
+                                )
+                            }
+                            //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = false)
+                            Thread.sleep(50L)
+                        } else {
+                            throw e
                         }
-                        //JvmMeta.runOtherEntryPointSameClassPath(KorgeKotlinCompilerCLIDaemon::class, socketPath.absolutePath, waitEnd = false, shutdownHook = false)
-                        Thread.sleep(50L)
-                    } else {
-                        throw e
+                    }
+                }
+
+                if (verbose) println("[CLIENT] Sending command...")
+                client.writePacket(Packet(Packet.TYPE_COMMAND) {
+                    writeStringLenListLen(args.toList())
+                })
+
+                while (client.isOpen) {
+                    val packet = client.readPacket()
+                    if (verbose) println("[CLIENT] Received packet $packet")
+                    when (packet.type) {
+                        Packet.TYPE_STDOUT -> {
+                            System.out.write(packet.data)
+                            System.out.flush()
+                        }
+
+                        Packet.TYPE_STDERR -> {
+                            System.err.print("\u001b[91m")
+                            System.err.write(packet.data)
+                            System.err.flush()
+                            System.err.print("\u001b[m")
+                        }
+
+                        Packet.TYPE_END -> client.close()
                     }
                 }
             }
-
-            if (verbose) println("[CLIENT] Sending command...")
-            client.writePacket(Packet(Packet.TYPE_COMMAND) {
-                writeStringLenListLen(args.toList())
-            })
-
-            while (client.isOpen) {
-                val packet = client.readPacket()
-                if (verbose) println("[CLIENT] Received packet $packet")
-                when (packet.type) {
-                    Packet.TYPE_STDOUT -> {
-                        System.out.write(packet.data)
-                        System.out.flush()
-                    }
-                    Packet.TYPE_STDERR -> {
-                        System.err.print("\u001b[91m")
-                        System.err.write(packet.data)
-                        System.err.flush()
-                        System.err.print("\u001b[m")
-                    }
-                    Packet.TYPE_END -> client.close()
-                }
-            }
+        } finally {
+            virtualVirtualExecutor.awaitTermination(1L, TimeUnit.SECONDS)
+            threadExecutor.awaitTermination(1L, TimeUnit.SECONDS)
         }
     }
 }
@@ -104,7 +113,7 @@ object KorgeKotlinCompilerCLIDaemon {
 
         //val threads = Executors.newCachedThreadPool()
 
-        virtualExecutor.submit {
+        threadExecutor.submit {
             while (true) {
                 Thread.sleep(1_000L)
                 if (!File(socketPath).exists()) {
@@ -128,7 +137,7 @@ object KorgeKotlinCompilerCLIDaemon {
                     val socket = server.accept()
                     println("[DAEMON]: Accepted connection")
                     lastUpdate = System.currentTimeMillis()
-                    virtualExecutor.submit {
+                    threadExecutor.submit {
                         while (socket.isOpen) {
                             lastUpdate = System.currentTimeMillis()
                             val packet = socket.readPacket()
@@ -229,7 +238,8 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                 tempFile.mkdirs()
 
                 File(tempFile, "module.yaml").also { it.parentFile.mkdirs() }.writeText("dependencies:")
-                File(tempFile, "src/main.kt").also { it.parentFile.mkdirs() }.writeText("""
+                File(tempFile, "src/main.kt").also { it.parentFile.mkdirs() }.writeText(
+                    """
                     fun main() { println("Hello, World! ${'$'}{Demo.DEMO}") }
                     interface MyInt {
                         fun test() = 10
@@ -243,7 +253,8 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                             val Int.demo get() = this + 1
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 KorgeKotlinCompiler(pipes).compileAllModules(
                     ProjectParser(tempFile, pipes).rootModule.module,
@@ -270,8 +281,7 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
             .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
-                TODO()
-                KorgeKotlinCompiler(pipes).compileAndRun(
+                KorgeKotlinCompiler(pipes, reload = true).compileAndRun(
                     ProjectParser(File(path), pipes).rootModule.module,
                 )
             }
@@ -338,8 +348,7 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                     .command("cmd", "/c", "install-korge-forge.cmd")
                     .directory(dir)
                     .start()
-                    .redirectTo(stdout, stderr)
-                    .waitFor()
+                    .redirectToWaitFor(pipes)
             }
 
             else -> {
@@ -350,8 +359,7 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                     .command("sh", "install-korge-forge.sh")
                     .directory(dir)
                     .start()
-                    .redirectTo(stdout, stderr)
-                    .waitFor()
+                    .redirectToWaitFor(pipes)
             }
         }
     }

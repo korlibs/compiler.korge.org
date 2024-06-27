@@ -16,9 +16,9 @@ class GitHubRepoRefPath private constructor(val ref: GitHubRepoRef, val path: St
         if (!localFile.exists()) {
             localFile.parentFile.mkdirs()
             ProcessBuilder("git", "pull")
-                .directory(ref.repo.getClonedRepo(pipes)).start().redirectTo(pipes).waitFor()
+                .directory(ref.repo.getClonedRepo(pipes)).start().redirectToWaitFor(pipes)
             ProcessBuilder("git", "archive", "-o", localFile.absolutePath, ref.ref, path)
-                .directory(ref.repo.getClonedRepo(pipes)).start().redirectTo(pipes).waitFor()
+                .directory(ref.repo.getClonedRepo(pipes)).start().redirectToWaitFor(pipes)
         }
         return localFile
     }
@@ -59,8 +59,7 @@ class GitHubRepo private constructor(val owner: String, val name: String, unit: 
             localCloneFile.mkdirs()
             ProcessBuilder("git", "clone", gitUrl, localCloneFile.absolutePath)
                 .start()
-                .redirectTo(pipes)
-                .waitFor()
+                .redirectToWaitFor(pipes)
         }
         return localCloneFile
     }
