@@ -51,4 +51,4 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            build/libs/korge-kotlin-compiler-all.tar.xz
+            korge-kotlin-compiler/build/libs/korge-kotlin-compiler-all.tar.xz
