@@ -11,11 +11,15 @@ object JvmMeta {
             .orElseThrow()
     }
 
-    fun runOtherEntryPointSameClassPath(clazz: KClass<*>, vararg args: String, envs: Map<String, String> = emptyMap(), cwd: File = File(".").absoluteFile, waitEnd: Boolean = true, shutdownHook: Boolean = true, inheritIO: Boolean = true): Process {
-        return runOtherEntryPointSameClassPath(clazz.qualifiedName!!.replace("/", "."), *args, envs = envs, cwd = cwd, waitEnd = waitEnd, shutdownHook = shutdownHook, inheritIO = inheritIO)
-    }
-
-    fun runOtherEntryPointSameClassPath(newMainClass: String, vararg args: String, envs: Map<String, String> = emptyMap(), cwd: File = File(".").absoluteFile, waitEnd: Boolean = true, shutdownHook: Boolean = true, inheritIO: Boolean = true): Process {
+    fun runOtherEntryPointSameClassPath(
+        clazz: Any, vararg args: String, envs: Map<String, String> = emptyMap(),
+        cwd: File = File(".").absoluteFile,
+        waitEnd: Boolean = true, shutdownHook: Boolean = true, inheritIO: Boolean = true,
+    ): Process {
+        val newMainClass = when {
+            clazz is KClass<*> -> clazz.qualifiedName!!.replace("/", ".")
+            else -> clazz.toString()
+        }
         //val javaHome = System.getProperty("java.home")
         //val javaBin = "$javaHome/bin/java"
 

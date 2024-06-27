@@ -275,7 +275,42 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                     ProjectParser(File(path), pipes).rootModule.module,
                 )
             }
-            .registerCommand("package:jvm", desc = "Packages a far jar file for the specified <folder> containing a KorGE project") {
+            .registerCommand("package:js", desc = "Creates a package for JavaScript (JS)") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
+            .registerCommand("package:wasm", desc = "Creates a package for WebAssembly (WASM)") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
+            .registerCommand("package:windows", desc = "Creates a package for Windows (EXE)") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
+            .registerCommand("package:linux", desc = "Creates a package for Linux (APP)") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
+            .registerCommand("package:mac", desc = "Creates a package for macOS (APP)") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
+            .registerCommand("package:jvm", desc = "Creates a package for the JVM (JAR)") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
+            .registerCommand("package:android", desc = "Creates a package for Android (APK)") {
+                val path = it.removeFirstOrNull() ?: "."
+                //KorgeKotlinCompiler.compileModule()
+                TODO()
+            }
+            .registerCommand("package:ios", desc = "Creates a package for iOS (IPA)") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
                 TODO()

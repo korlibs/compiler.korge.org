@@ -1,3 +1,5 @@
 #!/bin/bash
 
-java -jar "$HOME/.korge/compiler/korge-kotlin-compiler.jar" $*
+#java -client -XX:-TieredCompilation -XX:+OptimizeStringConcat -XX:+UseSuperWord -jar "$HOME/.korge/compiler/korge-kotlin-compiler.jar" $*
+java -client -XX:-TieredCompilation -jar "$HOME/.korge/compiler/korge-kotlin-compiler.jar" $*
+

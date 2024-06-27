@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.*
 import org.jetbrains.kotlin.gradle.dsl.*
 
 plugins {
@@ -46,9 +47,26 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class).all {
     }
 }
 
+val mainClassFqname = "korlibs.korge.kotlincompiler.KorgeKotlinCompilerCLI"
+
+application {
+    mainClass.set(mainClassFqname)
+}
+
 tasks {
     val shutdownDaemon by creating(Delete::class) {
         this.delete(File(System.getProperty("user.home"), ".korge/socket/compiler.socket"))
+    }
+    val shadowJarFast by creating(Jar::class) {
+        manifest {
+            attributes["Main-Class"] = mainClassFqname
+        }
+        with(jar.get())
+        archiveClassifier.set("all-fast")
+        //from(sourceSets["main"].output)
+        entryCompression = ZipEntryCompression.STORED
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        from(configurations.runtimeClasspath.map { it.map { if (it.isDirectory) it else zipTree(it) } })
     }
     val install by creating(Copy::class) {
         dependsOn(shutdownDaemon, shadowJar)
@@ -56,9 +74,16 @@ tasks {
         rename { "korge-kotlin-compiler.jar" }
         into(System.getProperty("user.home") + "/.korge/compiler")
     }
-}
-
-application {
-    //mainClass.set("korlibs.korge.kotlincompiler.KorgeKotlinCompiler")
-    mainClass.set("korlibs.korge.kotlincompiler.KorgeKotlinCompilerCLI")
+    val installFast by creating(Copy::class) {
+        dependsOn(shutdownDaemon, shadowJarFast)
+        from("build/libs/korge-kotlin-compiler-all-fast.jar")
+        rename { "korge-kotlin-compiler.jar" }
+        into(System.getProperty("user.home") + "/.korge/compiler")
+    }
+    //val customShadow by creating(ShadowJar::class) {
+    //    archiveClassifier.set("all")
+    //    mergeServiceFiles()
+    //    //relocate("com.somepackage", "shadow.com.somepackage")
+    //    this.entryCompression = ZipEntryCompression.STORED
+    //}
 }
