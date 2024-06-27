@@ -116,4 +116,5 @@ tasks.withType(org.gradle.api.tasks.testing.AbstractTestTask::class) {
 buildConfig {
     packageName("korlibs.korge.kotlincompiler")
     buildConfigField("String", "KORGE_COMPILER_VERSION", "\"$projectVersion\"")
+    buildConfigField("String", "LATEST_KORGE_VERSION", "\"6.0.0-alpha5\"")
 }

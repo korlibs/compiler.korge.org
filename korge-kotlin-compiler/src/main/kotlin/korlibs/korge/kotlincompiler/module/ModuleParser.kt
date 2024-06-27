@@ -2,6 +2,8 @@ package korlibs.korge.kotlincompiler.module
 
 import korlibs.io.dynamic.*
 import korlibs.io.serialization.yaml.*
+import korlibs.korge.kotlincompiler.*
+import korlibs.korge.kotlincompiler.BuildConfig
 import korlibs.korge.kotlincompiler.git.*
 import korlibs.korge.kotlincompiler.maven.*
 import korlibs.korge.kotlincompiler.util.*
@@ -21,7 +23,7 @@ open class ProjectParser(val projectDir: File, val pipes: StdPipes) {
         }
 
         if (artifact.version == "") {
-            return artifact.copy(version = "999.0.0.999")
+            return artifact.copy(version = BuildConfig.LATEST_KORGE_VERSION)
         }
         return artifact
     }
@@ -53,7 +55,7 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
             libs = (
                 listOf(
                     MavenArtifact("org.jetbrains.kotlin", "kotlin-stdlib", "2.0.0"),
-                    MavenArtifact("com.soywiz.korge", "korge-jvm", "999.0.0.999"),
+                    MavenArtifact("com.soywiz.korge", "korge-jvm", BuildConfig.LATEST_KORGE_VERSION),
                 ) + mavenDeps.map { it.artifact }
             ).toSet(),
         )

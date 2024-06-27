@@ -26,7 +26,7 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             println(JvmMeta.javaExecutablePath)
             val libs = setOf(
                 MavenArtifact("org.jetbrains.kotlin", "kotlin-stdlib", "2.0.0"),
-                MavenArtifact("com.soywiz.korge", "korge-jvm", "999.0.0.999")
+                MavenArtifact("com.soywiz.korge", "korge-jvm", BuildConfig.LATEST_KORGE_VERSION)
             )
             val mod1 = Module(
                 projectDir = File("C:\\Users\\soywiz\\projects\\korge-snake\\modules\\korma-tile-matching"),
