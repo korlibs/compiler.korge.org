@@ -12,22 +12,19 @@ class GitHubRepoRefPath private constructor(val ref: GitHubRepoRef, val path: St
         File(ref.repo.localCloneFile, "../__checkouts__/$path/${ref.ref}.tar.gz").absoluteFile
     }
 
-    fun getArchive(): File {
+    fun getArchive(pipes: StdPipes): File {
         if (!localFile.exists()) {
             localFile.parentFile.mkdirs()
             ProcessBuilder("git", "pull")
-                .directory(ref.repo.getClonedRepo()).inheritIO().start().waitFor()
+                .directory(ref.repo.getClonedRepo(pipes)).start().redirectTo(pipes).waitFor()
             ProcessBuilder("git", "archive", "-o", localFile.absolutePath, ref.ref, path)
-                .directory(ref.repo.getClonedRepo()).inheritIO().start().waitFor()
+                .directory(ref.repo.getClonedRepo(pipes)).start().redirectTo(pipes).waitFor()
         }
         return localFile
     }
 
-    fun extractTo(folder: File) {
-        println(getArchive())
-        println(getArchive().exists())
-        TarTools(removeNDirs = path.count { it == '/' } + 1).extractTarGz(getArchive(), folder)
-        //TODO("Extract ${getArchive()} to $folder")
+    fun extractTo(folder: File, pipes: StdPipes) {
+        TarTools(removeNDirs = path.count { it == '/' } + 1).extractTarGz(getArchive(pipes), folder)
     }
 
     companion object {
@@ -57,12 +54,12 @@ class GitHubRepo private constructor(val owner: String, val name: String, unit: 
         File(USER_HOME, ".kproject/clones/github.com/$owner/$name/__git__")
     }
 
-    fun getClonedRepo(): File {
+    fun getClonedRepo(pipes: StdPipes): File {
         if (!File(localCloneFile, ".git").isDirectory) {
             localCloneFile.mkdirs()
             ProcessBuilder("git", "clone", gitUrl, localCloneFile.absolutePath)
-                .inheritIO()
                 .start()
+                .redirectTo(pipes)
                 .waitFor()
         }
         return localCloneFile

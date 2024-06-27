@@ -7,7 +7,7 @@ import korlibs.korge.kotlincompiler.maven.*
 import korlibs.korge.kotlincompiler.util.*
 import java.io.*
 
-open class ProjectParser(val projectDir: File) {
+open class ProjectParser(val projectDir: File, val pipes: StdPipes) {
     private val modules = LinkedHashMap<File, ModuleParser>()
 
     val allModules get() = modules.values.toList()
@@ -35,6 +35,7 @@ open class ProjectParser(val projectDir: File) {
 }
 
 class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
+    val pipes get() = rootProject.pipes
     override fun toString(): String = "ModuleParser($moduleDir, name=$moduleName, version=$korgeVersion)"
 
     var korgeVersion: String? = null
@@ -99,8 +100,9 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
                     val moduleDir = File(rootProject.projectDir, "modules/${File(path).name}")
                     val gitArchiveFile = File(moduleDir, ".gitarchive")
                     if (!gitArchiveFile.exists() || gitArchiveFile.readText().trim() != ref) {
+                        gitArchiveFile.parentFile.mkdirs()
                         gitArchiveFile.writeText(ref)
-                        GitHubRepoRefPath(owner, repo, hash.takeIf { it.isNotEmpty() } ?: ref, path).extractTo(moduleDir)
+                        GitHubRepoRefPath(owner, repo, hash.takeIf { it.isNotEmpty() } ?: ref, path).extractTo(moduleDir, pipes)
                     }
                     moduleDeps += rootProject.module(moduleDir)
                 }

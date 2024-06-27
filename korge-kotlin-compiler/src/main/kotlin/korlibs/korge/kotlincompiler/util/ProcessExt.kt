@@ -4,9 +4,24 @@ import java.io.*
 
 fun ProcessBuilder.startEnsuringDestroyed(shutdownHook: Boolean = true): Process {
     val process = start()
-    if (shutdownHook) Runtime.getRuntime().addShutdownHook(Thread { process.destroy(); process.destroyForcibly() })
+    if (shutdownHook) {
+        val shutdownHook = Thread { process.destroy(); process.destroyForcibly() }
+        Runtime.getRuntime().addShutdownHook(shutdownHook)
+        virtualExecutor.submit {
+            process.waitFor()
+            Runtime.getRuntime().removeShutdownHook(shutdownHook)
+        }
+    }
     return process
 }
+
+open class StdPipes(val out: PrintStream = System.out, val err: PrintStream = System.err) {
+    constructor(out: OutputStream, err: OutputStream) : this(PrintStream(out), PrintStream(err))
+
+    companion object : StdPipes()
+}
+
+fun Process.redirectTo(pipes: StdPipes): Process = redirectTo(pipes.out, pipes.err)
 
 fun Process.redirectTo(out: OutputStream, err: OutputStream): Process {
     virtualExecutor.execute {

@@ -11,10 +11,14 @@ import java.util.*
 import kotlin.system.*
 import korlibs.korge.kotlincompiler.module.Module
 import korlibs.korge.kotlincompiler.util.*
+import kotlin.time.*
 
 // https://github.com/JetBrains/kotlin/tree/master/compiler/build-tools/kotlin-build-tools-api
 // https://github.com/JetBrains/kotlin/blob/bc1ddd8205f6107c7aec87a9fb3bd7713e68902d/compiler/build-tools/kotlin-build-tools-api-tests/src/main/kotlin/compilation/model/JvmModule.kt
-class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: PrintStream = System.err) {
+class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes) {
+    val stdout get() = pipes.out
+    val stderr get() = pipes.err
+
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
@@ -124,7 +128,6 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
         }
         //stdout.println(allArgs.joinToString(" "))
         return ProcessBuilder(allArgs)
-            .inheritIO()
             .also { it.environment().putAll(envs) }
             .startEnsuringDestroyed()
             .redirectTo(stdout, stderr)
@@ -152,39 +155,48 @@ class KorgeKotlinCompiler(val stdout: PrintStream = System.out, val stderr: Prin
     private fun createSnapshots(): ClasspathSnapshotBasedIncrementalCompilationApproachParameters {
         val snapshots = mutableListOf<File>()
 
-        for (lib in libs) {
-            try {
-                if (lib.isFile && lib.name.endsWith(".jar", ignoreCase = true)) {
-                    val hexDigest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA1").digest(lib.readBytes()))
-                    val file = File(icWorkingDir, "dep-" + lib.name + "-$hexDigest.snapshot").absoluteFile
-                    if (!file.exists()) {
+        var savedSnapshots = 0
+        val snapshotsTime = measureTime {
+            for (lib in libs) {
+                try {
+                    val isJar = lib.isFile && lib.name.endsWith(".jar", ignoreCase = true)
+                    val isDirectory = lib.isDirectory
+                    if (isJar) {
+                        val hexDigest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA1").digest(lib.readBytes()))
+                        val file = File(icWorkingDir, "dep-" + lib.name + "-$hexDigest.snapshot").absoluteFile
+                        if (!file.exists()) {
+                            //val snapshot = service.calculateClasspathSnapshot(lib, ClassSnapshotGranularity.CLASS_MEMBER_LEVEL)
+                            val snapshot = service.calculateClasspathSnapshot(lib, ClassSnapshotGranularity.CLASS_LEVEL)
+                            //stdout.println("Saving... $file")
+                            file.parentFile.mkdirs()
+                            //println(snapshot.classSnapshots)
+                            savedSnapshots++
+                            snapshot.saveSnapshot(file)
+                        }
+                        snapshots += file
+                    } else if (isDirectory) {
                         //val snapshot = service.calculateClasspathSnapshot(lib, ClassSnapshotGranularity.CLASS_MEMBER_LEVEL)
                         val snapshot = service.calculateClasspathSnapshot(lib, ClassSnapshotGranularity.CLASS_LEVEL)
-                        stdout.println("Saving... $file")
-                        file.parentFile.mkdirs()
-                        //println(snapshot.classSnapshots)
-                        snapshot.saveSnapshot(file)
-                    } else {
-                        //println("Loading... $file")
+                        val hash = snapshot.classSnapshots.values
+                            .filterIsInstance<AccessibleClassSnapshot>()
+                            .withIndex()
+                            .sumOf { (index, snapshot) -> index * 31 + snapshot.classAbiHash }
+                        val file = File(icWorkingDir, "dep-$hash.snapshot")
+                        //if (!file.exists()) {
+                            file.parentFile.mkdirs()
+                            savedSnapshots++
+                            snapshot.saveSnapshot(file)
+                        //}
+                        snapshots += file
                     }
-                    snapshots += file
-                } else if (lib.isDirectory) {
-                    //val snapshot = service.calculateClasspathSnapshot(lib, ClassSnapshotGranularity.CLASS_MEMBER_LEVEL)
-                    val snapshot = service.calculateClasspathSnapshot(lib, ClassSnapshotGranularity.CLASS_LEVEL)
-                    val hash = snapshot.classSnapshots.values
-                        .filterIsInstance<AccessibleClassSnapshot>()
-                        .withIndex()
-                        .sumOf { (index, snapshot) -> index * 31 + snapshot.classAbiHash }
-                    val file = File(icWorkingDir, "dep-$hash.snapshot")
-                    file.parentFile.mkdirs()
-                    snapshot.saveSnapshot(file)
-                    snapshots += file
+                } catch (e: Throwable) {
+                    stderr.println("ERROR generating $lib snapshot")
+                    e.printStackTrace(stderr)
                 }
-            } catch (e: Throwable) {
-                stderr.println("ERROR generating $lib snapshot")
-                e.printStackTrace(stderr)
             }
         }
+
+        stdout.println("Saved $savedSnapshots snapshots in $snapshotsTime")
 
         val shrunkClasspathSnapshotFile = File(icWorkingDir, "shrunk-classpath-snapshot.bin")
         return ClasspathSnapshotBasedIncrementalCompilationApproachParameters(

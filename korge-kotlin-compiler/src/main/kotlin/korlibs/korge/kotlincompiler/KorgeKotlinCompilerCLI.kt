@@ -139,15 +139,16 @@ object KorgeKotlinCompilerCLIDaemon {
                                     try {
                                         PacketOutputStream(socket, Packet.TYPE_STDOUT).use { stdoutStream ->
                                             PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
-                                                val stdout = PrintStream(stdoutStream)
-                                                val stderr = PrintStream(stderrStream)
+                                                val pipes = StdPipes(stdoutStream, stderrStream)
+                                                val stdout = pipes.out
+                                                val stderr = pipes.err
 
                                                 //System.setOut(stdout)
                                                 //System.setErr(stderr)
 
                                                 //stdout.println("CALLING CLI")
                                                 try {
-                                                    KorgeKotlinCompilerCLISimple(stdout, stderr).main(args.toTypedArray())
+                                                    KorgeKotlinCompilerCLISimple(pipes).main(args.toTypedArray())
                                                     //stdout.println("AFTER CALLING CLI")
                                                 } catch (e: ExitProcessException) {
                                                     socket.writePacket(Packet(Packet.TYPE_END))
@@ -186,11 +187,14 @@ object KorgeKotlinCompilerCLIDaemon {
 
 class ExitProcessException(val exitCode: Int) : Exception()
 
-class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val stderr: PrintStream = System.err) {
+class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
+    val stdout get() = pipes.out
+    val stderr get() = pipes.err
+
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            KorgeKotlinCompilerCLISimple(System.out, System.err).main(args)
+            KorgeKotlinCompilerCLISimple(StdPipes).main(args)
         }
     }
 
@@ -198,15 +202,15 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
     fun main(args: Array<String>) {
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$stdout, stderr=$stderr")
 
-        val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", "0.0.1-alpha", stdout, stderr)
+        val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", "0.0.1-alpha", pipes)
             .registerCommand("forge", desc = "Opens the KorGE Forge installer") { ide() }
-            .registerCommand("version", desc = "Displays compiler version") { stdout.println(KorgeKotlinCompiler.getCompilerVersion()) }
+            .registerCommand("version", desc = "Displays compiler version") { out.println(KorgeKotlinCompiler.getCompilerVersion()) }
             //.registerCommand("idea", desc = "Creates IDEA modules") { }
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
-                KorgeKotlinCompiler(stdout, stderr).compileAllModules(
-                    ProjectParser(File(path)).rootModule.module,
+                KorgeKotlinCompiler(pipes).compileAllModules(
+                    ProjectParser(File(path), pipes).rootModule.module,
                 )
             }
             .registerCommand("clean", desc = "Removes all the build caches") {
@@ -241,8 +245,8 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
                     }
                 """.trimIndent())
 
-                KorgeKotlinCompiler(stdout, stderr).compileAllModules(
-                    ProjectParser(tempFile).rootModule.module,
+                KorgeKotlinCompiler(pipes).compileAllModules(
+                    ProjectParser(tempFile, pipes).rootModule.module,
                 )
                 //tempFile.writeText("fun main() { println(\"Hello, World!\") }")
                 //KorgeKotlinCompiler().also {
@@ -259,16 +263,16 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
-                KorgeKotlinCompiler(stdout, stderr).compileAndRun(
-                    ProjectParser(File(path)).rootModule.module,
+                KorgeKotlinCompiler(pipes).compileAndRun(
+                    ProjectParser(File(path), pipes).rootModule.module,
                 )
             }
             .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
                 TODO()
-                KorgeKotlinCompiler(stdout, stderr).compileAndRun(
-                    ProjectParser(File(path)).rootModule.module,
+                KorgeKotlinCompiler(pipes).compileAndRun(
+                    ProjectParser(File(path), pipes).rootModule.module,
                 )
             }
             .registerCommand("package:jvm", desc = "Packages a far jar file for the specified <folder> containing a KorGE project") {
@@ -279,7 +283,7 @@ class KorgeKotlinCompilerCLISimple(val stdout: PrintStream = System.out, val std
             .registerCommand("wrapper", desc = "Update wrapper to version <version>") {
                 val version = it.removeFirstOrNull() ?: error("version not specified")
                 //KorgeKotlinCompiler.compileModule()
-                stdout.println("[FAKE]: Updating to... $version")
+                out.println("[FAKE]: Updating to... $version")
                 TODO()
             }
             .registerCommand("stop", desc = "Stops the daemon") {

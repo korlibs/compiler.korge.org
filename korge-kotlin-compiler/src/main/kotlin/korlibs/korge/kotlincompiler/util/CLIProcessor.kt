@@ -1,15 +1,15 @@
 package korlibs.korge.kotlincompiler.util
 
-import java.io.PrintStream
-
 typealias CLIProcessorHandler = CLIProcessor.(ArrayDeque<String>) -> Unit
 
 class CLIProcessor(
     val name: String = "CLI",
     val version: String = "unknown",
-    val stdout: PrintStream = System.out,
-    val stderr: PrintStream = System.err,
+    val pipes: StdPipes = StdPipes,
 ) {
+    val out = pipes.out
+    val err = pipes.err
+
     data class Command(val name: String, val names: List<String>, val desc: String, val handler: CLIProcessorHandler)
 
     val scommands = LinkedHashMap<String, Command>()
@@ -27,11 +27,11 @@ class CLIProcessor(
     }
 
     fun printHelp() {
-        stdout.println("$name - $version")
-        stdout.println("")
-        stdout.println("COMMANDS:")
+        out.println("$name - $version")
+        out.println("")
+        out.println("COMMANDS:")
         for (command in scommands.values) {
-            stdout.println(" - ${command.name} - ${command.desc}")
+            out.println(" - ${command.name} - ${command.desc}")
         }
     }
 
