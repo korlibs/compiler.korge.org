@@ -95,8 +95,8 @@ object KorgeKotlinCompilerCLI {
                 }
             }
         } finally {
-            virtualVirtualExecutor.awaitTermination(1L, TimeUnit.SECONDS)
-            threadExecutor.awaitTermination(1L, TimeUnit.SECONDS)
+            virtualVirtualExecutor.awaitTermination(10L, TimeUnit.MILLISECONDS)
+            threadExecutor.awaitTermination(10L, TimeUnit.MILLISECONDS)
         }
     }
 }

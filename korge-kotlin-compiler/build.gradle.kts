@@ -8,6 +8,16 @@ plugins {
     id("com.github.gmazzo.buildconfig") version "5.3.5"
 }
 
+var projectVersion = System.getenv("FORCED_VERSION")
+    ?.replaceFirst(Regex("^refs/tags/"), "")
+    ?.replaceFirst(Regex("^v"), "")
+    ?.replaceFirst(Regex("^w"), "")
+    ?.replaceFirst(Regex("^z"), "")
+    ?: "0.0.1"
+//?: project.findProperty("version")
+
+version = projectVersion
+
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-build-tools-impl")
     implementation("org.jetbrains.kotlin:kotlin-build-tools-api")
@@ -81,7 +91,7 @@ tasks {
     val install by creating(Copy::class) {
         dependsOn(shutdownDaemon, fatJar)
         from("build/libs/korge-kotlin-compiler-all.jar")
-        rename { "korge-kotlin-compiler.jar" }
+        rename { "korge-kotlin-compiler-all.$version.jar" }
         into(System.getProperty("user.home") + "/.korge/compiler")
     }
 }
@@ -98,16 +108,6 @@ tasks.withType(org.gradle.api.tasks.testing.AbstractTestTask::class) {
         showStackTraces = true
     }
 }
-
-var projectVersion = System.getenv("FORCED_VERSION")
-    ?.replaceFirst(Regex("^refs/tags/"), "")
-    ?.replaceFirst(Regex("^v"), "")
-    ?.replaceFirst(Regex("^w"), "")
-    ?.replaceFirst(Regex("^z"), "")
-    ?: "0.0.1-alpha-SNAPSHOT"
-    //?: project.findProperty("version")
-
-version = projectVersion
 
 buildConfig {
     packageName("korlibs.korge.kotlincompiler")
