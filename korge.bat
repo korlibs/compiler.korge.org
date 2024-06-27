@@ -2,9 +2,9 @@
 
 SETLOCAL EnableDelayedExpansion
 
-SET INSTALLER_VERSION=0.0.1
+SET INSTALLER_VERSION=0.0.2
 SET INSTALLER_URL=https://github.com/korlibs/compiler.korge.org/releases/download/v%INSTALLER_VERSION%/korge-kotlin-compiler-all.tar.xz
-SET INSTALLER_SHA256=0de1ab981f602aa35ec239094811707c65dc5cea39d55f3510527f6d48791c79
+SET INSTALLER_SHA256=a8e306fb74aa5f7f19c3b9fcfba8eb8ef12ba25a556f8ce48aa10a680752e3fc
 
 SET KORGEDIR=%USERPROFILE%\.korge
 SET JAVA=%KORGEDIR%\jre-21\bin\java.exe
