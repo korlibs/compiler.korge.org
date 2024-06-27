@@ -18,6 +18,10 @@ var projectVersion = System.getenv("FORCED_VERSION")
 
 version = projectVersion
 
+if (System.getenv("FORCED_VERSION") != null) {
+    println("FORCED_VERSION=$version")
+}
+
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-build-tools-impl")
     implementation("org.jetbrains.kotlin:kotlin-build-tools-api")
