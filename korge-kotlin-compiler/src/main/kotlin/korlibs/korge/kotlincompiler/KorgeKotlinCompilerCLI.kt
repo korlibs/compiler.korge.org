@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package korlibs.korge.kotlincompiler
 
 import korlibs.korge.kotlincompiler.module.*
@@ -7,6 +9,7 @@ import java.io.*
 import java.net.*
 import java.nio.channels.*
 import java.nio.file.*
+import java.security.MessageDigest
 import java.util.concurrent.*
 import kotlin.system.*
 
@@ -342,8 +345,24 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
             .registerCommand("wrapper", desc = "Update wrapper to version <version>") {
                 val version = it.removeFirstOrNull() ?: error("version not specified")
                 //KorgeKotlinCompiler.compileModule()
-                out.println("[FAKE]: Updating to... $version")
-                TODO()
+                out.println("Updating to... $version")
+
+                val downloadUrl = "https://github.com/korlibs/compiler.korge.org/releases/download/v$version/korge-kotlin-compiler-all.tar.xz"
+                out.println("URL: $downloadUrl")
+                val sha256 = MessageDigest.getInstance("SHA-256").digest(URL(downloadUrl).readBytes()).toHexString().lowercase()
+                out.println("SHA256: $sha256")
+
+
+                //https://github.com/korlibs/compiler.korge.org/releases/download/v%INSTALLER_VERSION%/korge-kotlin-compiler-all.tar.xz
+
+                fun String.replaceVersion(): String {
+                    return this
+                        .replace(Regex("INSTALLER_VERSION=.*")) { "INSTALLER_VERSION=$version" }
+                        .replace(Regex("INSTALLER_SHA256=.*")) { "INSTALLER_SHA256=$sha256" }
+                }
+
+                file("korge").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
+                file("korge.bat").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
             }
             .registerCommand("stop", desc = "Stops the daemon") {
                 throw ExitProcessException(0)
