@@ -7,6 +7,7 @@ plugins {
     kotlin("jvm") version "2.0.0"
     application
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.github.gmazzo.buildconfig") version "5.3.5"
     //id("maven-publish")
 }
 
@@ -61,15 +62,23 @@ tasks {
         this.delete(File(System.getProperty("user.home"), ".korge/socket/compiler.socket"))
     }
     val shadowJarFast by creating(Jar::class) {
+        dependsOn(jar)
         manifest {
             attributes["Main-Class"] = mainClassFqname
         }
         with(jar.get())
-        archiveClassifier.set("all-fast")
+        archiveClassifier.set("all")
         //from(sourceSets["main"].output)
         entryCompression = ZipEntryCompression.STORED
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         from(configurations.runtimeClasspath.map { it.map { if (it.isDirectory) it else zipTree(it) } })
+    }
+    val createJarPack by creating(Exec::class) {
+        dependsOn(shadowJarFast)
+        workingDir(file("build/libs"))
+        commandLine("tar", "-cJf", "korge-kotlin-compiler-all.tar.xz", "korge-kotlin-compiler-all.jar")
+        //inputs.file("build/libs/korge-kotlin-compiler-all.tar")
+        //outputs.file("build/libs/korge-kotlin-compiler-all.tar.xz")
     }
     val install by creating(Copy::class) {
         dependsOn(shutdownDaemon, shadowJar)
@@ -79,7 +88,7 @@ tasks {
     }
     val installFast by creating(Copy::class) {
         dependsOn(shutdownDaemon, shadowJarFast)
-        from("build/libs/korge-kotlin-compiler-all-fast.jar")
+        from("build/libs/korge-kotlin-compiler-all.jar")
         rename { "korge-kotlin-compiler.jar" }
         into(System.getProperty("user.home") + "/.korge/compiler")
     }
@@ -102,4 +111,19 @@ tasks.withType(org.gradle.api.tasks.testing.AbstractTestTask::class) {
         showStandardStreams = true
         showStackTraces = true
     }
+}
+
+var projectVersion = System.getenv("FORCED_VERSION")
+    ?.replaceFirst(Regex("^refs/tags/"), "")
+    ?.replaceFirst(Regex("^v"), "")
+    ?.replaceFirst(Regex("^w"), "")
+    ?.replaceFirst(Regex("^z"), "")
+    ?: "0.0.1-alpha-SNAPSHOT"
+    //?: project.findProperty("version")
+
+version = projectVersion
+
+buildConfig {
+    packageName("korlibs.korge.kotlincompiler")
+    buildConfigField("String", "KORGE_COMPILER_VERSION", "\"$projectVersion\"")
 }

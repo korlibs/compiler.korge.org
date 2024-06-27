@@ -211,7 +211,7 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
     fun main(args: Array<String>) {
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$stdout, stderr=$stderr")
 
-        val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", "0.0.1-alpha", pipes)
+        val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", BuildConfig.KORGE_COMPILER_VERSION, pipes)
             .registerCommand("forge", desc = "Opens the KorGE Forge installer") { ide() }
             .registerCommand("version", desc = "Displays compiler version") { out.println(KorgeKotlinCompiler.getCompilerVersion()) }
             //.registerCommand("idea", desc = "Creates IDEA modules") { }
@@ -221,6 +221,10 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                 KorgeKotlinCompiler(pipes).compileAllModules(
                     ProjectParser(File(path), pipes).rootModule.module,
                 )
+            }
+            .registerCommand("test", desc = "Test the specified <folder> containing a KorGE project") {
+                val path = it.removeFirstOrNull() ?: "."
+                TODO()
             }
             .registerCommand("clean", desc = "Removes all the build caches") {
                 val path = it.removeFirstOrNull() ?: "."
