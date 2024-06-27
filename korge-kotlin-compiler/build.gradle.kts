@@ -5,9 +5,7 @@ plugins {
     java
     kotlin("jvm") version "2.0.0"
     application
-    //id("com.github.johnrengelman.shadow") version "8.1.1"
     id("com.github.gmazzo.buildconfig") version "5.3.5"
-    //id("maven-publish")
 }
 
 dependencies {
@@ -86,12 +84,6 @@ tasks {
         rename { "korge-kotlin-compiler.jar" }
         into(System.getProperty("user.home") + "/.korge/compiler")
     }
-    //val customShadow by creating(ShadowJar::class) {
-    //    archiveClassifier.set("all")
-    //    mergeServiceFiles()
-    //    //relocate("com.somepackage", "shadow.com.somepackage")
-    //    this.entryCompression = ZipEntryCompression.STORED
-    //}
 }
 
 tasks.withType(org.gradle.api.tasks.testing.AbstractTestTask::class) {
