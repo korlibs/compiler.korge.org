@@ -25,10 +25,11 @@ object KorgeKotlinCompilerCLI {
     fun main(args: Array<String>) {
         //RecursiveDirectoryWatcher.watch(File("../korge-kotlin-compiler/src")) { println(it) } .await()
         //RecursiveDirectoryWatcher.watch(File("..")) { println(it) }.await()
+        val currentDir = File(".").canonicalFile
 
         try {
             if (System.getenv("KORGE_DAEMON") == "false") {
-                KorgeKotlinCompilerCLISimple.main(args)
+                KorgeKotlinCompilerCLISimple(currentDir, StdPipes).main(args)
             } else {
                 val socketPath = File(KORGE_DIR, "/socket/compiler.socket")
                 socketPath.parentFile.mkdirs()
@@ -71,6 +72,7 @@ object KorgeKotlinCompilerCLI {
 
                 if (verbose) println("[CLIENT] Sending command...")
                 client.writePacket(Packet(Packet.TYPE_COMMAND) {
+                    writeStringLen(currentDir.absolutePath)
                     writeStringLenListLen(args.toList())
                 })
 
@@ -144,7 +146,11 @@ object KorgeKotlinCompilerCLIDaemon {
                             println("[DAEMON]: Received packet $packet")
                             when (packet.type) {
                                 Packet.TYPE_COMMAND -> {
-                                    val args = packet.data.processBytes { readStringLenListLen() }
+                                    val (currentDir, args) = packet.data.processBytes {
+                                        val currentDir = readStringLen()
+                                        val args = readStringLenListLen()
+                                        Pair(currentDir, args)
+                                    }
                                     try {
                                         PacketOutputStream(socket, Packet.TYPE_STDOUT).use { stdoutStream ->
                                             PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
@@ -157,7 +163,7 @@ object KorgeKotlinCompilerCLIDaemon {
 
                                                 //stdout.println("CALLING CLI")
                                                 try {
-                                                    KorgeKotlinCompilerCLISimple(pipes).main(args.toTypedArray())
+                                                    KorgeKotlinCompilerCLISimple(File(currentDir), pipes).main(args.toTypedArray())
                                                     //stdout.println("AFTER CALLING CLI")
                                                 } catch (e: ExitProcessException) {
                                                     socket.writePacket(Packet(Packet.TYPE_END))
@@ -196,16 +202,20 @@ object KorgeKotlinCompilerCLIDaemon {
 
 class ExitProcessException(val exitCode: Int) : Exception()
 
-class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
+class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
     val stdout get() = pipes.out
     val stderr get() = pipes.err
 
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            KorgeKotlinCompilerCLISimple(StdPipes).main(args)
-        }
-    }
+    //companion object {
+    //    @JvmStatic
+    //    fun main(args: Array<String>) {
+    //        KorgeKotlinCompilerCLISimple(File(".").canonicalFile, StdPipes).main(args)
+    //    }
+    //}
+
+    fun file(path: String): File = File(path).takeIf { it.isAbsolute } ?: File(currentDir, path)
+    fun file(base: String, path: String): File = file("$base/$path")
+    fun file(base: File, path: String): File = File(base, path)
 
     @JvmName("main2")
     fun main(args: Array<String>) {
@@ -219,7 +229,7 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
                 KorgeKotlinCompiler(pipes).compileAllModules(
-                    ProjectParser(File(path), pipes).rootModule.module,
+                    ProjectParser(file(path), pipes).rootModule.module,
                 )
             }
             .registerCommand("test", desc = "Test the specified <folder> containing a KorGE project") {
@@ -228,7 +238,7 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
             }
             .registerCommand("clean", desc = "Removes all the build caches") {
                 val path = it.removeFirstOrNull() ?: "."
-                File(path, ".korge").deleteRecursively()
+                file(path, ".korge").deleteRecursively()
                 //KorgeKotlinCompiler.compileModule()
             }
             .registerCommand("new", desc = "Creates a new KorGE project in the specified <folder>") {
@@ -241,8 +251,8 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                 tempFile.delete()
                 tempFile.mkdirs()
 
-                File(tempFile, "module.yaml").also { it.parentFile.mkdirs() }.writeText("dependencies:")
-                File(tempFile, "src/main.kt").also { it.parentFile.mkdirs() }.writeText(
+                file(tempFile, "module.yaml").also { it.parentFile.mkdirs() }.writeText("dependencies:")
+                file(tempFile, "src/main.kt").also { it.parentFile.mkdirs() }.writeText(
                     """
                     fun main() { println("Hello, World! ${'$'}{Demo.DEMO}") }
                     interface MyInt {
@@ -279,14 +289,14 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
                 KorgeKotlinCompiler(pipes).compileAndRun(
-                    ProjectParser(File(path), pipes).rootModule.module,
+                    ProjectParser(file(path), pipes).rootModule.module,
                 )
             }
             .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
                 KorgeKotlinCompiler(pipes, reload = true).compileAndRun(
-                    ProjectParser(File(path), pipes).rootModule.module,
+                    ProjectParser(file(path), pipes).rootModule.module,
                 )
             }
             .registerCommand("package:js", desc = "Creates a package for JavaScript (JS)") {
@@ -345,9 +355,9 @@ class KorgeKotlinCompilerCLISimple(val pipes: StdPipes) {
     fun ide() {
         when (OS.CURRENT) {
             OS.WINDOWS -> {
-                val dir = File(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
+                val dir = file(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
                 val data = URL("https://forge.korge.org/install-korge-forge.cmd").readBytes()
-                File(dir, "install-korge-forge.cmd").writeBytes(data)
+                file(dir, "install-korge-forge.cmd").writeBytes(data)
                 ProcessBuilder()
                     .command("cmd", "/c", "install-korge-forge.cmd")
                     .directory(dir)
