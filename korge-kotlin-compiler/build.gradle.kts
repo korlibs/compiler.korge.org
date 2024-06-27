@@ -1,4 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.*
 import org.gradle.api.tasks.testing.logging.*
 import org.jetbrains.kotlin.gradle.dsl.*
 
@@ -6,7 +5,7 @@ plugins {
     java
     kotlin("jvm") version "2.0.0"
     application
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    //id("com.github.johnrengelman.shadow") version "8.1.1"
     id("com.github.gmazzo.buildconfig") version "5.3.5"
     //id("maven-publish")
 }
@@ -61,33 +60,28 @@ tasks {
     val shutdownDaemon by creating(Delete::class) {
         this.delete(File(System.getProperty("user.home"), ".korge/socket/compiler.socket"))
     }
-    val shadowJarFast by creating(Jar::class) {
+    val fatJar by creating(Jar::class) {
         dependsOn(jar)
         manifest {
             attributes["Main-Class"] = mainClassFqname
         }
         with(jar.get())
         archiveClassifier.set("all")
+        this.archiveVersion.set("")
         //from(sourceSets["main"].output)
         entryCompression = ZipEntryCompression.STORED
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         from(configurations.runtimeClasspath.map { it.map { if (it.isDirectory) it else zipTree(it) } })
     }
     val createJarPack by creating(Exec::class) {
-        dependsOn(shadowJarFast)
+        dependsOn(fatJar)
         workingDir(file("build/libs"))
         commandLine("tar", "-cJf", "korge-kotlin-compiler-all.tar.xz", "korge-kotlin-compiler-all.jar")
         //inputs.file("build/libs/korge-kotlin-compiler-all.tar")
         //outputs.file("build/libs/korge-kotlin-compiler-all.tar.xz")
     }
     val install by creating(Copy::class) {
-        dependsOn(shutdownDaemon, shadowJar)
-        from("build/libs/korge-kotlin-compiler-all.jar")
-        rename { "korge-kotlin-compiler.jar" }
-        into(System.getProperty("user.home") + "/.korge/compiler")
-    }
-    val installFast by creating(Copy::class) {
-        dependsOn(shutdownDaemon, shadowJarFast)
+        dependsOn(shutdownDaemon, fatJar)
         from("build/libs/korge-kotlin-compiler-all.jar")
         rename { "korge-kotlin-compiler.jar" }
         into(System.getProperty("user.home") + "/.korge/compiler")
