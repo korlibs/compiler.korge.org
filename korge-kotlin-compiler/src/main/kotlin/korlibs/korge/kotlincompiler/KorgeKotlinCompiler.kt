@@ -292,9 +292,9 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             //listOf(File("/temp/1-common")),
             arguments = listOf(
                 "-module-name=${rootDir.name}",
-                "-Xjdk-release=17",
+                //"-Xjdk-release=17",
                 //"-Xuse-fast-jar-file-system",
-                "-jvm-target=17",
+                "-jvm-target=21",
                 "-Xmulti-platform",
                 //"-progressive",
                 "-language-version=1.9",
