@@ -265,16 +265,43 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 //class ProjectInfo(val rootDir: String, val projects: Map<String, ModuleInfo>)
 
                 out.println(Json.stringify(buildMap<String, Any> {
+                    put("model.version", BuildConfig.KORGE_COMPILER_VERSION)
                     put("root", rootModule.name)
+                    put("targets", buildMap {
+                        put("common", listOf())
+                        put("concurrent", listOf("common"))
+                        put("jvm", listOf("concurrent"))
+                        put("android", listOf("concurrent"))
+                        put("jvmAndAndroid", listOf("jvm", "android"))
+                        put("js", listOf("common"))
+                        put("wasm", listOf("common"))
+                        put("native", listOf("concurrent"))
+                        put("apple", listOf("native"))
+                        put("ios", listOf("apple"))
+                        put("tvos", listOf("apple"))
+                    })
                     put("projects", buildMap<String, Any> {
                         for (module in rootModule.allModuleDeps) {
                             put(module.name, buildMap<String, Any> {
                                 put("name", module.name)
                                 put("path", module.projectDir.canonicalPath)
                                 put("main", module.main)
+                                put("resources", buildMap {
+                                    put("common", listOf("resources"))
+                                })
+                                put("sources", buildMap {
+                                    put("common", listOf("src"))
+                                    put("jvm", listOf("src@jvm"))
+                                })
+                                put("tests", buildMap {
+                                    put("common", listOf("test"))
+                                    put("jvm", listOf("test@jvm"))
+                                })
                                 put("modules", module.moduleDeps.map { it.name })
                                 put("maven", module.libs.map { it.fqName })
-                                put("libs", module.libsFiles.map { it.absolutePath })
+                                put("libs", buildMap {
+                                    put("jvm", module.libsFiles.map { it.absolutePath })
+                                })
                             })
                         }
                     })
