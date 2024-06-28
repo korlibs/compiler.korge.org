@@ -87,6 +87,7 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             //println(compiler.compileJvm(forceRecompilation = true))
         }
         if (result != CompilationResult.COMPILATION_SUCCESS) {
+            buildDirectory.deleteRecursively()
             //compiler.filesTxtFile.delete() // Deletes just in case
         }
         stdout.println("$result: $time ms - ${module.projectDir}")
