@@ -300,7 +300,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                                 put("modules", module.moduleDeps.map { it.name })
                                 put("maven", module.libs.map { it.fqName })
                                 put("libs", buildMap {
-                                    put("jvm", module.libsFiles.map { it.absolutePath })
+                                    put("jvm", module.getLibsFiles(pipes).map { it.absolutePath })
                                 })
                             })
                         }

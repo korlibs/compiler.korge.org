@@ -1,6 +1,5 @@
 package korlibs.korge.kotlincompiler.module
 
-import korlibs.korge.kotlincompiler.*
 import korlibs.korge.kotlincompiler.util.*
 import java.io.*
 import kotlin.test.*
@@ -13,9 +12,10 @@ class ModuleParserTest {
         //    ProjectParser(File("C:\\Users\\soywiz\\projects\\korge-snake")).rootModule.module
         //)
 
+        val pipes = StdPipes
 
-        val parser = ProjectParser(File("../examples/project1"), StdPipes)
-        println(parser.rootModule.module.libsFiles)
+        val parser = ProjectParser(File("../examples/project1"), pipes)
+        println(parser.rootModule.module.getLibsFiles(pipes))
         for (module in parser.allModules) {
             println(module)
         }

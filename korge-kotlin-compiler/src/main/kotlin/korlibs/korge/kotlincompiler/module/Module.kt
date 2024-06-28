@@ -1,6 +1,7 @@
 package korlibs.korge.kotlincompiler.module
 
 import korlibs.korge.kotlincompiler.maven.*
+import korlibs.korge.kotlincompiler.util.*
 import java.io.*
 
 data class Module(
@@ -16,7 +17,12 @@ data class Module(
     }
     val allTransitiveLibs by lazy { allModuleDeps.flatMap { it.libs }.toSet() }
 
-    val libsFiles by lazy { libs.flatMap { it.getMavenArtifacts() }.toSet() }
+    private var _libsFiles: Set<File>? = null
+
+    fun getLibsFiles(pipes: StdPipes): Set<File> {
+        if (_libsFiles == null) _libsFiles = libs.flatMap { it.getMavenArtifacts(pipes) }.toSet()
+        return _libsFiles!!
+    }
 
     val buildDir = File(projectDir, ".korge")
     val classesDir = File(buildDir, "classes")

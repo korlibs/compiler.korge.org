@@ -79,7 +79,7 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
 
         rootDir = root
         sourceDirs = srcDirs.toSet()
-        libs = module.libsFiles.toSet() + libFiles.toSet()
+        libs = module.getLibsFiles(pipes).toSet() + libFiles.toSet()
 
         lateinit var result: CompilationResult
         val time = measureTimeMillis {
@@ -95,7 +95,7 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
     }
 
     fun runModule(module: Module, envs: Map<String, String> = mapOf()) {
-        val allClasspaths: Set<File> = module.allModuleDeps.flatMap { setOf(it.classesDir) + it.resourceDirs + it.libsFiles }.toSet()
+        val allClasspaths: Set<File> = module.allModuleDeps.flatMap { setOf(it.classesDir) + it.resourceDirs + it.getLibsFiles(pipes) }.toSet()
         stdout.println("Running... ${module.main}")
         runJvm(module.main, allClasspaths, envs)
     }
@@ -105,7 +105,7 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             add(JvmMeta.javaExecutablePath)
 
             if (reload) {
-                add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:6.0.0-alpha5").getSingleMavenArtifact(stdout).absolutePath}=")
+                add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:6.0.0-alpha5").getSingleMavenArtifact(pipes).absolutePath}=")
             }
 
             val addOpens = buildList {

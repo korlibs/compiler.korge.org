@@ -1,17 +1,17 @@
 package korlibs.korge.kotlincompiler.maven
 
+import korlibs.korge.kotlincompiler.util.*
 import java.io.*
-import java.lang.Runtime.Version
 import java.net.*
 
-fun Collection<MavenArtifact>.getMavenArtifacts(stdout: PrintStream = System.out): Set<File> = this.flatMap { it.getMavenArtifacts(stdout) }.toSet()
+fun Collection<MavenArtifact>.getMavenArtifacts(pipes: StdPipes): Set<File> = this.flatMap { it.getMavenArtifacts(pipes) }.toSet()
 
 fun Collection<MavenArtifact>.mergeMavenArtifacts(): Set<MavenArtifact> {
     val versions = this.groupBy { it.copy(version = "") }
     return versions.map { it.value.maxByOrNull { it.mavenVersion }!! }.toSet()
 }
 
-fun MavenArtifact.resolveAllMavenArtifacts(stdout: PrintStream = System.out, explored: MutableSet<MavenArtifact> = mutableSetOf()): Set<MavenArtifact> {
+fun MavenArtifact.resolveAllMavenArtifacts(pipes: StdPipes, explored: MutableSet<MavenArtifact> = mutableSetOf()): Set<MavenArtifact> {
     val explore = ArrayDeque<MavenArtifact>()
     explore += this
     val out = mutableSetOf<MavenArtifact>()
@@ -19,7 +19,7 @@ fun MavenArtifact.resolveAllMavenArtifacts(stdout: PrintStream = System.out, exp
         val artifact = explore.removeFirst()
         if (artifact in explored) continue
         explored += artifact
-        val pom = Pom.parse(artifact.copy(extension = "pom").getSingleMavenArtifact(stdout))
+        val pom = Pom.parse(artifact.copy(extension = "pom").getSingleMavenArtifact(pipes))
         if (pom.packaging == null || pom.packaging == "jar") {
             out += artifact
         }
@@ -30,16 +30,16 @@ fun MavenArtifact.resolveAllMavenArtifacts(stdout: PrintStream = System.out, exp
     return out.mergeMavenArtifacts()
 }
 
-fun MavenArtifact.getMavenArtifacts(stdout: PrintStream = System.out): Set<File> {
-    return resolveAllMavenArtifacts(stdout).map { it.getSingleMavenArtifact(stdout) }.toSet()
+fun MavenArtifact.getMavenArtifacts(pipes: StdPipes): Set<File> {
+    return resolveAllMavenArtifacts(pipes).map { it.getSingleMavenArtifact(pipes) }.toSet()
 }
 
-fun MavenArtifact.getSingleMavenArtifact(stdout: PrintStream = System.out): File {
+fun MavenArtifact.getSingleMavenArtifact(pipes: StdPipes): File {
     val file = File(System.getProperty("user.home"), ".m2/repository/${localPath}")
     if (!file.exists()) {
         file.parentFile.mkdirs()
         val url = URL("https://repo1.maven.org/maven2/${localPath}")
-        stdout.println("Downloading $url")
+        pipes.out.println("Downloading $url")
         file.writeBytes(url.readBytes())
     }
     return file
