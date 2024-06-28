@@ -1,3 +1,4 @@
+import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.tasks.testing.logging.*
 import org.jetbrains.kotlin.gradle.dsl.*
 
@@ -74,6 +75,16 @@ application {
 tasks {
     val shutdownDaemon by creating(Delete::class) {
         this.delete(File(System.getProperty("user.home"), ".korge/socket/compiler-${version}.socket"))
+        doFirst {
+            exec {
+                workingDir = rootProject.rootDir
+                if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                    commandLine("cmd", "/c", "korge.bat", "stop")
+                } else {
+                    commandLine("sh", "./korge", "stop")
+                }
+            }
+        }
     }
     val fatJar by creating(Jar::class) {
         dependsOn(jar)
