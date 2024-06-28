@@ -412,6 +412,19 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 ProcessBuilder(exe.absolutePath, projectPath.absolutePath)
                     .start()
             }
+            OS.LINUX -> {
+                val files = File(USER_HOME, ".local/share/KorGEForge").listFiles()?.toList() ?: emptyList()
+                val korgeRunners = files.mapNotNull { File(it, "bin/korge.sh").takeIfExists() }
+                val exe = korgeRunners?.firstOrNull()
+                if (exe == null) {
+                    err.println("KorGE Forge not installed, opening installer...")
+                    forgeInstaller()
+                    return
+                }
+                out.println("Opening $projectPath with $exe")
+                ProcessBuilder("sh", exe.absolutePath, projectPath.absolutePath)
+                    .start()
+            }
             else -> {
                 TODO("Not implemented in ${OS.CURRENT}")
             }
