@@ -239,7 +239,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$out, stderr=$err")
 
         val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", BuildConfig.KORGE_COMPILER_VERSION, pipes)
-            .registerCommand("install", "forge", desc = "Opens the KorGE Forge installer") { forgeInstaller() }
+            .registerCommand("install", "uninstall", "forge", desc = "Opens the KorGE Forge installer") { forgeInstaller() }
             .registerCommand("open", desc = "Opens the project with KorGE Forge") { openInIde(file(it.removeFirstOrNull() ?: ".")) }
             .registerCommand("version", desc = "Displays versions") {
                 out.println(
@@ -439,42 +439,46 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
     }
 
     private fun openInIde(projectPath: File) {
-        val projectPath = projectPath.canonicalFile
-        val baseFolder = when (OS.CURRENT) {
-            OS.WINDOWS -> File(System.getenv("LOCALAPPDATA"), "KorGEForge")
-            OS.LINUX -> File(USER_HOME, ".local/share/KorGEForge")
-            OS.MACOS -> File(USER_HOME, "Applications")
-        }
-        val exePath = when (OS.CURRENT) {
-            OS.WINDOWS -> "bin/korge64.exe"
-            OS.LINUX -> "bin/korge.sh"
-            OS.MACOS -> "Contents/MacOS/korge"
-        }
+        while (true) {
+            val projectPath = projectPath.canonicalFile
+            val baseFolder = when (OS.CURRENT) {
+                OS.WINDOWS -> File(System.getenv("LOCALAPPDATA"), "KorGEForge")
+                OS.LINUX -> File(USER_HOME, ".local/share/KorGEForge")
+                OS.MACOS -> File(USER_HOME, "Applications")
+            }
+            val exePath = when (OS.CURRENT) {
+                OS.WINDOWS -> "bin/korge64.exe"
+                OS.LINUX -> "bin/korge.sh"
+                OS.MACOS -> "Contents/MacOS/korge"
+            }
 
-        val files = baseFolder.files()
-        val korgeRunners = files.mapNotNull { File(it, exePath).takeIfExists() }
-        val exe = korgeRunners.firstOrNull()
-        if (exe == null) {
-            err.println("KorGE Forge not installed, opening installer...")
-            forgeInstaller()
+            val files = baseFolder.files()
+            val korgeRunners = files.mapNotNull { File(it, exePath).takeIfExists() }
+            val exe = korgeRunners.firstOrNull()
+            if (exe == null) {
+                err.println("KorGE Forge not installed, opening installer...")
+                forgeInstaller("--install")
+                err.println("Retrying opening...")
+                continue
+            }
+            out.println("Opening $projectPath with $exe")
+            ProcessBuilder(buildList {
+                if (OS.CURRENT == OS.LINUX) add("sh")
+                add(exe.absolutePath)
+                add(projectPath.absolutePath)
+            }).start()
             return
         }
-        out.println("Opening $projectPath with $exe")
-        ProcessBuilder(buildList {
-            if (OS.CURRENT == OS.LINUX) add("sh")
-            add(exe.absolutePath)
-            add(projectPath.absolutePath)
-        }).start()
     }
 
-    private fun forgeInstaller() {
+    private fun forgeInstaller(vararg args: String) {
         when (OS.CURRENT) {
             OS.WINDOWS -> {
                 val dir = file(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
                 val data = URL("https://forge.korge.org/install-korge-forge.cmd").readBytes()
                 file(dir, "install-korge-forge.cmd").writeBytes(data)
                 ProcessBuilder()
-                    .command("cmd", "/c", "install-korge-forge.cmd")
+                    .command("cmd", "/c", "install-korge-forge.cmd", *args)
                     .directory(dir)
                     .start()
                     .redirectToWaitFor(pipes)
@@ -485,7 +489,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 val data = URL("https://forge.korge.org/install-korge-forge.sh").readBytes()
                 File(dir, "install-korge-forge.sh").writeBytes(data)
                 ProcessBuilder()
-                    .command("sh", "install-korge-forge.sh")
+                    .command("sh", "install-korge-forge.sh", *args)
                     .directory(dir)
                     .start()
                     .redirectToWaitFor(pipes)
