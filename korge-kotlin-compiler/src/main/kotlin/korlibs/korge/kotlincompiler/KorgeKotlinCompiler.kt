@@ -30,12 +30,14 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             )
             val mod1 = Module(
                 projectDir = File("C:\\Users\\soywiz\\projects\\korge-snake\\modules\\korma-tile-matching"),
-                libs = libs
+                libs = libs,
+                name = "korge-snake",
             )
             val snakeModule = Module(
                 projectDir = File("C:\\Users\\soywiz\\projects\\korge-snake"),
                 moduleDeps = setOf(mod1),
-                libs = libs
+                libs = libs,
+                name = "korge-snake",
             )
             val compiler = KorgeKotlinCompiler()
             //compileAndRun(snakeModule, mapOf("KORGE_HEADLESS" to "true", "KORGE_IPC" to "C:\\Users\\soywiz\\AppData\\Local\\Temp\\/KORGE_IPC-304208"))

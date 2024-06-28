@@ -8,6 +8,8 @@ data class Module(
     val moduleDeps: Set<Module> = setOf(),
     val libs: Set<MavenArtifact> = setOf(),
     val main: String = "MainKt",
+    //val name: String,
+    val name: String = projectDir.name,
 ) {
     val allModuleDeps: Set<Module> by lazy {
         (moduleDeps.flatMap { it.allModuleDeps + it } + this).toSet()

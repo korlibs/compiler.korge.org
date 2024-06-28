@@ -1,11 +1,17 @@
 package korlibs.korge.kotlincompiler.maven
 
 import java.io.*
+import java.lang.Runtime.Version
 import java.net.*
 
-fun List<MavenArtifact>.getMavenArtifacts(stdout: PrintStream = System.out): Set<File> = this.flatMap { it.getMavenArtifacts(stdout) }.toSet()
+fun Collection<MavenArtifact>.getMavenArtifacts(stdout: PrintStream = System.out): Set<File> = this.flatMap { it.getMavenArtifacts(stdout) }.toSet()
 
-fun MavenArtifact.getMavenArtifacts(stdout: PrintStream = System.out, explored: MutableSet<MavenArtifact> = mutableSetOf()): Set<File> {
+fun Collection<MavenArtifact>.mergeMavenArtifacts(): Set<MavenArtifact> {
+    val versions = this.groupBy { it.copy(version = "") }
+    return versions.map { it.value.maxByOrNull { it.mavenVersion }!! }.toSet()
+}
+
+fun MavenArtifact.resolveAllMavenArtifacts(stdout: PrintStream = System.out, explored: MutableSet<MavenArtifact> = mutableSetOf()): Set<MavenArtifact> {
     val explore = ArrayDeque<MavenArtifact>()
     explore += this
     val out = mutableSetOf<MavenArtifact>()
@@ -21,7 +27,11 @@ fun MavenArtifact.getMavenArtifacts(stdout: PrintStream = System.out, explored: 
             explore += dep.artifact
         }
     }
-    return out.map { it.getSingleMavenArtifact(stdout) }.toSet()
+    return out.mergeMavenArtifacts()
+}
+
+fun MavenArtifact.getMavenArtifacts(stdout: PrintStream = System.out): Set<File> {
+    return resolveAllMavenArtifacts(stdout).map { it.getSingleMavenArtifact(stdout) }.toSet()
 }
 
 fun MavenArtifact.getSingleMavenArtifact(stdout: PrintStream = System.out): File {

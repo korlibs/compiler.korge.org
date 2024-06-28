@@ -2,6 +2,7 @@
 
 package korlibs.korge.kotlincompiler
 
+import korlibs.io.serialization.json.*
 import korlibs.korge.kotlincompiler.module.*
 import korlibs.korge.kotlincompiler.socket.*
 import korlibs.korge.kotlincompiler.util.*
@@ -249,6 +250,33 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                         }
                     """.trimIndent()
                 )
+            }
+            .registerCommand("info", desc = "Display project information in JSON format") {
+                val path = it.removeFirstOrNull() ?: "."
+
+                val projectParser = ProjectParser(file(path), pipes)
+                val rootModuleParser = projectParser.rootModule
+                val rootModule = rootModuleParser.module
+
+
+                //@Serializable
+                //class ProjectInfo(val rootDir: String, val projects: Map<String, ModuleInfo>)
+
+                out.println(Json.stringify(buildMap<String, Any> {
+                    put("root", rootModule.name)
+                    put("projects", buildMap<String, Any> {
+                        for (module in rootModule.allModuleDeps) {
+                            put(module.name, buildMap<String, Any> {
+                                put("name", module.name)
+                                put("path", module.projectDir.canonicalPath)
+                                put("main", module.main)
+                                put("modules", module.moduleDeps.map { it.name })
+                                put("maven", module.libs.map { it.fqName })
+                                put("libs", module.libsFiles.map { it.absolutePath })
+                            })
+                        }
+                    })
+                }, pretty = true))
             }
             //.registerCommand("idea", desc = "Creates IDEA modules") { }
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {

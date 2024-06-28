@@ -46,11 +46,10 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
     val moduleDeps = mutableSetOf<ModuleParser>()
     val mavenDeps = mutableSetOf<MavenDependency>()
 
-
     val module: Module by lazy {
         Module(
             projectDir = moduleDir,
-            //name = moduleName,
+            name = moduleName,
             moduleDeps = moduleDeps.map { it.module }.toSet(),
             libs = (
                 listOf(
