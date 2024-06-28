@@ -23,6 +23,7 @@ val verbose by lazy { System.getenv("KORGE_VERBOSE") == "true" }
 
 val USER_HOME by lazy { File(System.getProperty("user.home")) }
 val KORGE_DIR by lazy { File(USER_HOME, ".korge").also { it.mkdirs() } }
+val TMP_DIR by lazy { File(System.getProperty("java.io.tmpdir")) }
 
 object KorgeKotlinCompilerCLI {
     @JvmStatic
@@ -35,7 +36,7 @@ object KorgeKotlinCompilerCLI {
             if (System.getenv("KORGE_DAEMON") == "false") {
                 KorgeKotlinCompilerCLISimple(currentDir, StdPipes).main(args)
             } else {
-                val socketPath = File(KORGE_DIR, "/socket/compiler-${BuildConfig.KORGE_COMPILER_VERSION}.socket")
+                val socketPath = File(TMP_DIR, "/korge.socket.compiler.${BuildConfig.KORGE_COMPILER_VERSION}.socket")
                 socketPath.parentFile.mkdirs()
 
                 //if (restartDaemon || args.firstOrNull() == "stop") {
