@@ -292,9 +292,13 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
             //}
             .registerCommand("clean", desc = "Removes all the build caches") {
                 val path = it.removeFirstOrNull() ?: "."
+                val projectDir = file(path)
 
-                for (module in ProjectParser(file(path), pipes).allModules) {
-                    File(module.moduleDir, ".korge").deleteRecursively()
+                out.println("Deleting for $projectDir...")
+                for (module in ProjectParser(projectDir, pipes).rootModule.module.allModuleDeps) {
+                    val dotKorgeFile = File(module.projectDir, ".korge")
+                    out.println("Deleting $dotKorgeFile...")
+                    dotKorgeFile.deleteRecursively()
                 }
                 //KorgeKotlinCompiler.compileModule()
             }
