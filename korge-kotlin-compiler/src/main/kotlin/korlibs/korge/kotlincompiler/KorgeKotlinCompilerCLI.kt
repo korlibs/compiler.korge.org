@@ -135,7 +135,12 @@ object KorgeKotlinCompilerCLIDaemon {
         }
 
         try {
-            kotlin.runCatching { File(socketPath).delete() }
+            kotlin.runCatching {
+                File(socketPath).also {
+                    it.delete()
+                    it.deleteOnExit()
+                }
+            }
             val address = UnixDomainSocketAddress.of(Path.of(socketPath))
             val server = ServerSocketChannel.open(StandardProtocolFamily.UNIX).bind(address)
             println("[DAEMON]: Listening to $address")
