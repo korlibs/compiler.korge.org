@@ -308,13 +308,14 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
             //    TODO()
             //}
             .registerCommand("warm", desc = "Performs a warming-up of the daemon") {
-                val tempFile = File.createTempFile("temp", "kotlin")
-                tempFile.delete()
-                tempFile.mkdirs()
+                repeat(2) {
+                    val tempFile = File.createTempFile("temp", "kotlin-korge-kotlin-compiler-warmer")
+                    tempFile.delete()
+                    tempFile.mkdirs()
 
-                file(tempFile, "module.yaml").also { it.parentFile.mkdirs() }.writeText("dependencies:")
-                file(tempFile, "src/main.kt").also { it.parentFile.mkdirs() }.writeText(
-                    """
+                    file(tempFile, "module.yaml").also { it.parentFile.mkdirs() }.writeText("dependencies:")
+                    file(tempFile, "src/main.kt").also { it.parentFile.mkdirs() }.writeText(
+                        """
                     fun main() { println("Hello, World! ${'$'}{Demo.DEMO}") }
                     interface MyInt {
                         fun test() = 10
@@ -329,11 +330,14 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                         }
                     }
                 """.trimIndent()
-                )
+                    )
 
-                KorgeKotlinCompiler(pipes).compileAllModules(
-                    ProjectParser(tempFile, pipes).rootModule.module,
-                )
+                    repeat(2) {
+                        KorgeKotlinCompiler(pipes).compileAllModules(
+                            ProjectParser(tempFile, pipes).rootModule.module,
+                        )
+                    }
+                }
                 //tempFile.writeText("fun main() { println(\"Hello, World!\") }")
                 //KorgeKotlinCompiler().also {
                 //    it.sourceDirs
