@@ -13,10 +13,13 @@ var projectVersion = System.getenv("FORCED_VERSION")
     ?.replaceFirst(Regex("^v"), "")
     ?.replaceFirst(Regex("^w"), "")
     ?.replaceFirst(Regex("^z"), "")
-    ?: "0.0.1"
+    ?: rootProject.file("korge").takeIf { it.exists() }?.readText()?.let { Regex("INSTALLER_VERSION=(.*)").find(it)?.groupValues?.get(1) }
+    ?: "0.0.1-SNAPSHOT"
 //?: project.findProperty("version")
 
 version = projectVersion
+
+//println(version)
 
 if (System.getenv("FORCED_VERSION") != null) {
     println("FORCED_VERSION=$version")
@@ -70,7 +73,7 @@ application {
 
 tasks {
     val shutdownDaemon by creating(Delete::class) {
-        this.delete(File(System.getProperty("user.home"), ".korge/socket/compiler.socket"))
+        this.delete(File(System.getProperty("user.home"), ".korge/socket/compiler-${version}.socket"))
     }
     val fatJar by creating(Jar::class) {
         dependsOn(jar)

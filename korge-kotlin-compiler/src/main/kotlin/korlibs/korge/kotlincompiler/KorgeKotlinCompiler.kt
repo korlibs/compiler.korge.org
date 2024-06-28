@@ -64,6 +64,7 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
         module.allModuleDeps.forEach {
             compileModule(it)
         }
+        System.gc()
     }
 
     fun compileModule(module: Module) {

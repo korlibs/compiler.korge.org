@@ -143,49 +143,53 @@ object KorgeKotlinCompilerCLIDaemon {
                     println("[DAEMON]: Accepted connection")
                     lastUpdate = System.currentTimeMillis()
                     threadExecutor.submit {
-                        while (socket.isOpen) {
-                            lastUpdate = System.currentTimeMillis()
-                            val packet = socket.readPacket()
-                            println("[DAEMON]: Received packet $packet")
-                            when (packet.type) {
-                                Packet.TYPE_COMMAND -> {
-                                    val (currentDir, args) = packet.data.processBytes {
-                                        val currentDir = readStringLen()
-                                        val args = readStringLenListLen()
-                                        Pair(currentDir, args)
-                                    }
-                                    try {
-                                        PacketOutputStream(socket, Packet.TYPE_STDOUT).use { stdoutStream ->
-                                            PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
-                                                val pipes = StdPipes(stdoutStream, stderrStream)
-                                                val stdout = pipes.out
-                                                val stderr = pipes.err
+                        try {
+                            while (socket.isOpen) {
+                                lastUpdate = System.currentTimeMillis()
+                                val packet = socket.readPacket()
+                                println("[DAEMON]: Received packet $packet")
+                                when (packet.type) {
+                                    Packet.TYPE_COMMAND -> {
+                                        val (currentDir, args) = packet.data.processBytes {
+                                            val currentDir = readStringLen()
+                                            val args = readStringLenListLen()
+                                            Pair(currentDir, args)
+                                        }
+                                        try {
+                                            PacketOutputStream(socket, Packet.TYPE_STDOUT).use { stdoutStream ->
+                                                PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
+                                                    val pipes = StdPipes(stdoutStream, stderrStream)
+                                                    val stdout = pipes.out
+                                                    val stderr = pipes.err
 
-                                                //System.setOut(stdout)
-                                                //System.setErr(stderr)
+                                                    //System.setOut(stdout)
+                                                    //System.setErr(stderr)
 
-                                                //stdout.println("CALLING CLI")
-                                                try {
-                                                    KorgeKotlinCompilerCLISimple(File(currentDir), pipes).main(args.toTypedArray())
-                                                    //stdout.println("AFTER CALLING CLI")
-                                                } catch (e: ExitProcessException) {
-                                                    socket.writePacket(Packet(Packet.TYPE_END))
-                                                    Thread.sleep(50L)
-                                                    socket.close()
-                                                    exitProcess(e.exitCode)
-                                                } catch (e: Throwable) {
-                                                    //stdout.println("EXCEPTION CLI")
-                                                    e.printStackTrace(stderr)
+                                                    //stdout.println("CALLING CLI")
+                                                    try {
+                                                        KorgeKotlinCompilerCLISimple(File(currentDir), pipes).main(args.toTypedArray())
+                                                        //stdout.println("AFTER CALLING CLI")
+                                                    } catch (e: ExitProcessException) {
+                                                        socket.writePacket(Packet(Packet.TYPE_END))
+                                                        Thread.sleep(50L)
+                                                        socket.close()
+                                                        exitProcess(e.exitCode)
+                                                    } catch (e: Throwable) {
+                                                        //stdout.println("EXCEPTION CLI")
+                                                        e.printStackTrace(stderr)
+                                                    }
                                                 }
                                             }
+                                        } finally {
+                                            socket.writePacket(Packet(Packet.TYPE_END))
+                                            Thread.sleep(50L)
+                                            socket.close()
                                         }
-                                    } finally {
-                                        socket.writePacket(Packet(Packet.TYPE_END))
-                                        Thread.sleep(50L)
-                                        socket.close()
                                     }
                                 }
                             }
+                        } finally {
+                            System.gc()
                         }
                     }
                 } catch (e: ConnectException) {
@@ -225,7 +229,11 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$stdout, stderr=$stderr")
 
         val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", BuildConfig.KORGE_COMPILER_VERSION, pipes)
-            .registerCommand("forge", desc = "Opens the KorGE Forge installer") { ide() }
+            .registerCommand("forge", desc = "Opens the KorGE Forge installer") { forgeInstaller() }
+            .registerCommand("open", desc = "Opens the project with KorGE Forge") {
+                val path = it.removeFirstOrNull() ?: "."
+                openInIde(file(path))
+            }
             .registerCommand("version", desc = "Displays compiler version") { out.println(KorgeKotlinCompiler.getCompilerVersion()) }
             //.registerCommand("idea", desc = "Creates IDEA modules") { }
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
@@ -364,14 +372,34 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 file("korge").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
                 file("korge.bat").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
             }
-            .registerCommand("stop", desc = "Stops the daemon") {
-                throw ExitProcessException(0)
-            }
+            .registerCommand("stop", desc = "Stops the daemon") { throw ExitProcessException(0) }
+            .registerCommand("gc", desc = "Triggers a GC in the daemon") { System.gc() }
 
         processor.process(args)
     }
 
-    fun ide() {
+    private fun openInIde(projectPath: File) {
+        when (OS.CURRENT) {
+            OS.MACOS -> {
+                val files = File(USER_HOME, "Applications").listFiles()?.toList() ?: emptyList()
+                val macosAppPath = files.firstOrNull { it.name.contains("KorGE Forge") }
+                if (macosAppPath == null) {
+                    stderr.println("KorGE Forge not installed, opening installer...")
+                    forgeInstaller()
+                    return
+                }
+                stdout.println("Opening $projectPath with $macosAppPath")
+                val exe = File(macosAppPath.absoluteFile, "Contents/MacOS/korge")
+                ProcessBuilder(exe.absolutePath, projectPath.absolutePath)
+                    .start()
+            }
+            else -> {
+                TODO("Not implemented in ${OS.CURRENT}")
+            }
+        }
+    }
+
+    private fun forgeInstaller() {
         when (OS.CURRENT) {
             OS.WINDOWS -> {
                 val dir = file(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
