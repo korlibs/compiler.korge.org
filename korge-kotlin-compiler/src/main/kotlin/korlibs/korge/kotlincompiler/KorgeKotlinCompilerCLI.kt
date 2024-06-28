@@ -6,6 +6,7 @@ import korlibs.korge.kotlincompiler.module.*
 import korlibs.korge.kotlincompiler.socket.*
 import korlibs.korge.kotlincompiler.util.*
 import java.io.*
+import java.lang.management.*
 import java.net.*
 import java.nio.channels.*
 import java.nio.file.*
@@ -210,8 +211,8 @@ object KorgeKotlinCompilerCLIDaemon {
 class ExitProcessException(val exitCode: Int) : Exception()
 
 class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
-    val stdout get() = pipes.out
-    val stderr get() = pipes.err
+    val out get() = pipes.out
+    val err get() = pipes.err
 
     //companion object {
     //    @JvmStatic
@@ -226,15 +227,23 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
 
     @JvmName("main2")
     fun main(args: Array<String>) {
-        println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$stdout, stderr=$stderr")
+        println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, stdout=$out, stderr=$err")
 
         val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", BuildConfig.KORGE_COMPILER_VERSION, pipes)
             .registerCommand("forge", desc = "Opens the KorGE Forge installer") { forgeInstaller() }
-            .registerCommand("open", desc = "Opens the project with KorGE Forge") {
-                val path = it.removeFirstOrNull() ?: "."
-                openInIde(file(path))
+            .registerCommand("open", desc = "Opens the project with KorGE Forge") { openInIde(file(it.removeFirstOrNull() ?: ".")) }
+            .registerCommand("version", desc = "Displays versions") {
+                out.println(
+                    """
+                        {
+                            "tool": "${BuildConfig.KORGE_COMPILER_VERSION}",
+                            "jvm": "${ManagementFactory.getRuntimeMXBean().vmName} ${ManagementFactory.getRuntimeMXBean().vmVendor} ${ManagementFactory.getRuntimeMXBean().vmVersion}",
+                            "korge": "${BuildConfig.LATEST_KORGE_VERSION}",
+                            "kotlin": "${KorgeKotlinCompiler.getCompilerVersion()}"
+                        }
+                    """.trimIndent()
+                )
             }
-            .registerCommand("version", desc = "Displays compiler version") { out.println(KorgeKotlinCompiler.getCompilerVersion()) }
             //.registerCommand("idea", desc = "Creates IDEA modules") { }
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
@@ -303,6 +312,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                     ProjectParser(file(path), pipes).rootModule.module,
                 )
             }
+            /*
             .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
@@ -350,32 +360,35 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 //KorgeKotlinCompiler.compileModule()
                 TODO()
             }
-            .registerCommand("wrapper", desc = "Update wrapper to version <version>") {
-                val version = it.removeFirstOrNull() ?: error("version not specified")
-                //KorgeKotlinCompiler.compileModule()
-                out.println("Updating to... $version")
-
-                val downloadUrl = "https://github.com/korlibs/compiler.korge.org/releases/download/v$version/korge-kotlin-compiler-all.tar.xz"
-                out.println("URL: $downloadUrl")
-                val sha256 = MessageDigest.getInstance("SHA-256").digest(URL(downloadUrl).readBytes()).toHexString().lowercase()
-                out.println("SHA256: $sha256")
-
-
-                //https://github.com/korlibs/compiler.korge.org/releases/download/v%INSTALLER_VERSION%/korge-kotlin-compiler-all.tar.xz
-
-                fun String.replaceVersion(): String {
-                    return this
-                        .replace(Regex("INSTALLER_VERSION=.*")) { "INSTALLER_VERSION=$version" }
-                        .replace(Regex("INSTALLER_SHA256=.*")) { "INSTALLER_SHA256=$sha256" }
-                }
-
-                file("korge").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
-                file("korge.bat").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
-            }
+             */
+            .registerCommand("wrapper", desc = "Update wrapper to version <version>") { updateWrapper(it) }
             .registerCommand("stop", desc = "Stops the daemon") { throw ExitProcessException(0) }
             .registerCommand("gc", desc = "Triggers a GC in the daemon") { System.gc() }
 
         processor.process(args)
+    }
+
+    private fun CLIProcessor.updateWrapper(it: ArrayDeque<String>) {
+        val version = it.removeFirstOrNull() ?: error("version not specified")
+        //KorgeKotlinCompiler.compileModule()
+        out.println("Updating to... $version")
+
+        val downloadUrl = "https://github.com/korlibs/compiler.korge.org/releases/download/v$version/korge-kotlin-compiler-all.tar.xz"
+        out.println("URL: $downloadUrl")
+        val sha256 = MessageDigest.getInstance("SHA-256").digest(URL(downloadUrl).readBytes()).toHexString().lowercase()
+        out.println("SHA256: $sha256")
+
+
+        //https://github.com/korlibs/compiler.korge.org/releases/download/v%INSTALLER_VERSION%/korge-kotlin-compiler-all.tar.xz
+
+        fun String.replaceVersion(): String {
+            return this
+                .replace(Regex("INSTALLER_VERSION=.*")) { "INSTALLER_VERSION=$version" }
+                .replace(Regex("INSTALLER_SHA256=.*")) { "INSTALLER_SHA256=$sha256" }
+        }
+
+        file("korge").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
+        file("korge.bat").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
     }
 
     private fun openInIde(projectPath: File) {
@@ -384,11 +397,11 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 val files = File(USER_HOME, "Applications").listFiles()?.toList() ?: emptyList()
                 val macosAppPath = files.firstOrNull { it.name.contains("KorGE Forge") }
                 if (macosAppPath == null) {
-                    stderr.println("KorGE Forge not installed, opening installer...")
+                    err.println("KorGE Forge not installed, opening installer...")
                     forgeInstaller()
                     return
                 }
-                stdout.println("Opening $projectPath with $macosAppPath")
+                out.println("Opening $projectPath with $macosAppPath")
                 val exe = File(macosAppPath.absoluteFile, "Contents/MacOS/korge")
                 ProcessBuilder(exe.absolutePath, projectPath.absolutePath)
                     .start()
