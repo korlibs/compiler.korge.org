@@ -14,6 +14,8 @@ import java.nio.file.*
 import java.security.MessageDigest
 import java.util.concurrent.*
 import kotlin.system.*
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
 // taskkill /F /IM java.exe /T
 
@@ -116,7 +118,7 @@ object KorgeKotlinCompilerCLIDaemon {
 
         val socketPath = args.firstOrNull() ?: error("Must provide unix socket path")
 
-        val timeoutSeconds = 2 * 60
+        val daemonTimeout = 30.minutes
         var lastUpdate = System.currentTimeMillis()
 
         //val threads = Executors.newCachedThreadPool()
@@ -127,9 +129,9 @@ object KorgeKotlinCompilerCLIDaemon {
                 if (!File(socketPath).exists()) {
                     exitProcess(-1) // Socket closed
                 }
-                val elapsed = System.currentTimeMillis() - lastUpdate
-                if (elapsed >= timeoutSeconds * 1000L) {
-                    System.err.println("NO MORE ACTIONS IN $timeoutSeconds seconds")
+                val elapsed = (System.currentTimeMillis() - lastUpdate).milliseconds
+                if (elapsed >= daemonTimeout) {
+                    System.err.println("NO MORE ACTIONS IN $daemonTimeout seconds")
                     exitProcess(0)
                 }
             }
