@@ -286,20 +286,20 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                     ProjectParser(file(path), pipes).rootModule.module,
                 )
             }
-            .registerCommand("test", desc = "Test the specified <folder> containing a KorGE project") {
-                val path = it.removeFirstOrNull() ?: "."
-                TODO()
-            }
+            //.registerCommand("test", desc = "Test the specified <folder> containing a KorGE project") {
+            //    val path = it.removeFirstOrNull() ?: "."
+            //    TODO()
+            //}
             .registerCommand("clean", desc = "Removes all the build caches") {
                 val path = it.removeFirstOrNull() ?: "."
                 file(path, ".korge").deleteRecursively()
                 //KorgeKotlinCompiler.compileModule()
             }
-            .registerCommand("new", desc = "Creates a new KorGE project in the specified <folder>") {
-                val path = it.removeFirstOrNull() ?: "."
-                //KorgeKotlinCompiler.compileModule()
-                TODO()
-            }
+            //.registerCommand("new", desc = "Creates a new KorGE project in the specified <folder>") {
+            //    val path = it.removeFirstOrNull() ?: "."
+            //    //KorgeKotlinCompiler.compileModule()
+            //    TODO()
+            //}
             .registerCommand("warm", desc = "Performs a warming-up of the daemon") {
                 val tempFile = File.createTempFile("temp", "kotlin")
                 tempFile.delete()
