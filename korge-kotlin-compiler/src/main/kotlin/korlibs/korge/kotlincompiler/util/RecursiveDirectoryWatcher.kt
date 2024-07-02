@@ -1,6 +1,8 @@
 package korlibs.korge.kotlincompiler.util
 
 import io.methvin.watcher.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import java.io.*
 import java.nio.file.*
 import java.nio.file.attribute.*
@@ -11,11 +13,13 @@ object RecursiveDirectoryWatcher {
         abstract fun await()
     }
 
-    fun watch(file: File, event: (File) -> Unit): AwaitableCloseable {
-        val afile = file.canonicalFile
-        println("Watching for $afile")
+    fun watch(files: Iterable<File>, pipes: StdPipes, event: (File) -> Unit): AwaitableCloseable {
+        val paths = files.map { it.canonicalFile.toPath() }
+        //val afile = file.canonicalFile
+        pipes.out.println("Watching for $paths")
         val watcher = DirectoryWatcher.builder()
-            .path(afile.toPath())
+            //.path(afile.toPath())
+            .paths(paths)
             .listener { event: DirectoryChangeEvent ->
                 //println("event=$event")
                 when (event.eventType()) {

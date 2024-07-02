@@ -1,6 +1,6 @@
 package korlibs.korge.kotlincompiler.util
 
-typealias CLIProcessorHandler = CLIProcessor.(ArrayDeque<String>) -> Unit
+typealias CLIProcessorHandler = suspend CLIProcessor.(ArrayDeque<String>) -> Unit
 
 class CLIProcessor(
     val name: String = "CLI",
@@ -35,9 +35,9 @@ class CLIProcessor(
         }
     }
 
-    fun process(args: Array<String>) = process(args.toList())
-    fun process(args: List<String>) = process(ArrayDeque(args))
-    fun process(args: ArrayDeque<String>) {
+    suspend fun process(args: Array<String>) = process(args.toList())
+    suspend fun process(args: List<String>) = process(ArrayDeque(args))
+    suspend fun process(args: ArrayDeque<String>) {
         if (args.isEmpty()) {
             printHelp()
         } else {

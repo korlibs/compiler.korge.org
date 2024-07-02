@@ -27,6 +27,12 @@ object KorgeKotlinCompilerCLI {
         //RecursiveDirectoryWatcher.watch(File("..")) { println(it) }.await()
         val currentDir = File(".").canonicalFile
 
+        if (args.firstOrNull() == "kill") {
+            println("Killing all java.exe processes...")
+            ProcessBuilder("taskkill", "/F", "/IM", "java.exe", "/T").inheritIO().start().waitFor()
+            return
+        }
+
         try {
             if (System.getenv("KORGE_DAEMON") == "false") {
                 KorgeKotlinCompilerCLISimple(currentDir, StdPipes).main(args)
@@ -75,6 +81,7 @@ object KorgeKotlinCompilerCLI {
                     writeStringLen(currentDir.absolutePath)
                     writeStringLenListLen(args.toList())
                     writeStringLenListLen(System.getenv().map { "${it.key}=${it.value}" })
+                    writeLong(ProcessHandle.current().pid())
                 })
 
                 while (client.isOpen) {

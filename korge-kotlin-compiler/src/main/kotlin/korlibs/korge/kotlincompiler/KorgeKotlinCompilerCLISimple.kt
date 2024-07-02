@@ -5,10 +5,16 @@ package korlibs.korge.kotlincompiler
 import korlibs.io.serialization.json.*
 import korlibs.korge.kotlincompiler.module.*
 import korlibs.korge.kotlincompiler.util.*
+import kotlinx.atomicfu.*
+import kotlinx.coroutines.*
 import java.io.*
 import java.lang.management.*
 import java.net.*
+import java.nio.ByteBuffer
+import java.nio.channels.SocketChannel
 import java.security.*
+import kotlin.coroutines.*
+import kotlin.time.Duration.Companion.milliseconds
 
 class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
     val out get() = pipes.out
@@ -25,8 +31,36 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
     fun file(base: String, path: String): File = file("$base/$path")
     fun file(base: File, path: String): File = File(base, path)
 
-    @JvmName("main2")
-    fun main(args: Array<String>, envs: Map<String, String> = System.getenv()) {
+    fun main(args: Array<String>) {
+        runBlocking {
+            suspendMain(args, System.getenv(), pid = 0L)
+        }
+    }
+
+    private fun CLIProcessor.updateWrapper(it: ArrayDeque<String>) {
+        val version = it.removeFirstOrNull() ?: error("version not specified")
+        //KorgeKotlinCompiler.compileModule()
+        out.println("Updating to... $version")
+
+        val downloadUrl = "https://github.com/korlibs/compiler.korge.org/releases/download/v$version/korge-kotlin-compiler-all.tar.xz"
+        out.println("URL: $downloadUrl")
+        val sha256 = MessageDigest.getInstance("SHA-256").digest(URL(downloadUrl).readBytes()).toHexString().lowercase()
+        out.println("SHA256: $sha256")
+
+
+        //https://github.com/korlibs/compiler.korge.org/releases/download/v%INSTALLER_VERSION%/korge-kotlin-compiler-all.tar.xz
+
+        fun String.replaceVersion(): String {
+            return this
+                .replace(Regex("INSTALLER_VERSION=.*")) { "INSTALLER_VERSION=$version" }
+                .replace(Regex("INSTALLER_SHA256=.*")) { "INSTALLER_SHA256=$sha256" }
+        }
+
+        file("korge").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
+        file("korge.bat").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
+    }
+
+    suspend fun suspendMain(args: Array<String>, envs: Map<String, String>, pid: Long, checkAlive: () -> Boolean = { true }) {
         println("KorgeKotlinCompilerCLISimple.main: ${args.toList()}, envs=${envs.keys}, stdout=$out, stderr=$err")
 
         val processor = CLIProcessor("KorGE Kotlin Compiler & Tools", BuildConfig.KORGE_COMPILER_VERSION, pipes)
@@ -102,9 +136,13 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
             .registerCommand("build", desc = "Builds the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
-                KorgeKotlinCompiler(pipes).compileAllModules(
+                KorgeKotlinCompiler(pipes, pid = pid).compileAllModules(
                     ProjectParser(file(path), pipes).rootModule.module,
                 )
+            }
+            .registerCommand("build:watch", desc = "Builds the specified <folder> containing a KorGE project watching for changes") {
+                val path = it.removeFirstOrNull() ?: "."
+                buildWatch(path, pid) { checkAlive() }
             }
             //.registerCommand("test", desc = "Test the specified <folder> containing a KorGE project") {
             //    val path = it.removeFirstOrNull() ?: "."
@@ -154,7 +192,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                     )
 
                     repeat(2) {
-                        KorgeKotlinCompiler(pipes).compileAllModules(
+                        KorgeKotlinCompiler(pipes, pid = pid).compileAllModules(
                             ProjectParser(tempFile, pipes).rootModule.module,
                         )
                     }
@@ -174,19 +212,48 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
-                KorgeKotlinCompiler(pipes).compileAndRun(
+                KorgeKotlinCompiler(pipes, pid = pid).compileAndRun(
                     ProjectParser(file(path), pipes).rootModule.module,
                     envs = envs
                 )
             }
-            /*
             .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
-                KorgeKotlinCompiler(pipes, reload = true).compileAndRun(
-                    ProjectParser(file(path), pipes).rootModule.module,
-                )
+                val compiler = KorgeKotlinCompiler(pipes, reload = true, pid = pid)
+
+                val jobWatch = CoroutineScope(threadExecutorDispatcher).launch {
+                    buildWatch(path, pid, first = false, onRecompile = { start, end ->
+                        try {
+                            out.println("Connecting to ${compiler.reloadSocketFile.absolutePath} to notify reload... start=$start, end=$end")
+                            SocketChannel.open(UnixDomainSocketAddress.of(compiler.reloadSocketFile.absolutePath))
+                                .also { it.write(ByteBuffer.allocate(16).putLong(start).putLong(end).flip()) }
+                                //.close()
+                        } catch (e: Throwable) {
+                            e.printStackTrace()
+                        }
+                    }) { checkAlive() }
+                }
+
+                val project = ProjectParser(file(path), pipes)
+                compiler.korgeVersion = project.korgeVersion
+
+                val jobRun = CoroutineScope(threadExecutorDispatcher).launch {
+                    compiler.compileAndRun(project.rootModule.module, envs = envs)
+                }
+
+                jobWatch.join()
+                jobRun.join()
             }
+            .registerCommand("debug", desc = "Prints debug information") {
+                for ((thread, stacktrace) in Thread.getAllStackTraces()) {
+                    out.println("Thread: $thread")
+                    out.println("  ${stacktrace.toList().joinToString("\n  ")}")
+                }
+                //Thread.getAllStackTraces().keys
+            }
+            /*
+
             .registerCommand("package:js", desc = "Creates a package for JavaScript (JS)") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
@@ -235,29 +302,6 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
         processor.process(args)
     }
 
-    private fun CLIProcessor.updateWrapper(it: ArrayDeque<String>) {
-        val version = it.removeFirstOrNull() ?: error("version not specified")
-        //KorgeKotlinCompiler.compileModule()
-        out.println("Updating to... $version")
-
-        val downloadUrl = "https://github.com/korlibs/compiler.korge.org/releases/download/v$version/korge-kotlin-compiler-all.tar.xz"
-        out.println("URL: $downloadUrl")
-        val sha256 = MessageDigest.getInstance("SHA-256").digest(URL(downloadUrl).readBytes()).toHexString().lowercase()
-        out.println("SHA256: $sha256")
-
-
-        //https://github.com/korlibs/compiler.korge.org/releases/download/v%INSTALLER_VERSION%/korge-kotlin-compiler-all.tar.xz
-
-        fun String.replaceVersion(): String {
-            return this
-                .replace(Regex("INSTALLER_VERSION=.*")) { "INSTALLER_VERSION=$version" }
-                .replace(Regex("INSTALLER_SHA256=.*")) { "INSTALLER_SHA256=$sha256" }
-        }
-
-        file("korge").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
-        file("korge.bat").takeIfExists()?.let { it.writeText(it.readText().replaceVersion()) }
-    }
-
     private fun openInIde(projectPath: File) {
         while (true) {
             val projectPath = projectPath.canonicalFile
@@ -288,6 +332,47 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 add(projectPath.absolutePath)
             }).start()
             return
+        }
+    }
+
+    private suspend fun buildWatch(path: String, pid: Long, first: Boolean = true, onRecompile: (start: Long, end: Long) -> Unit = { start, end -> }, checkAlive: () -> Boolean) {
+        //KorgeKotlinCompiler.compileModule()
+        val parsed = ProjectParser(file(path), pipes)
+
+        pipes.out.println("parsed.allModules: ${parsed.allModules}")
+        val allSrcDirs = parsed.allModules.flatMap { it.module.srcDirs.filter { it.isDirectory } }.toSet()
+        pipes.out.println("parsed.allModules.srcDirs: $allSrcDirs")
+
+        fun recompile() {
+            pipes.out.println("Recompiling...")
+            val start = System.currentTimeMillis()
+            KorgeKotlinCompiler(pipes, pid = pid).compileAllModules(
+                ProjectParser(file(path), pipes).rootModule.module,
+            )
+            val end = System.currentTimeMillis()
+            try {
+                onRecompile(start, end)
+            } catch (e: Throwable) {
+                e.printStackTrace()
+            }
+        }
+
+        val modified = atomic(if (first) 1 else 0)
+        val watcher = RecursiveDirectoryWatcher.watch(allSrcDirs, pipes) {
+            pipes.out.println("Modified: $it")
+            modified.incrementAndGet()
+        }
+
+        try {
+            while (checkAlive()) {
+                if (modified.value > 0) {
+                    modified.value = 0
+                    recompile()
+                }
+                delay(50.milliseconds)
+            }
+        } finally {
+            watcher.close()
         }
     }
 

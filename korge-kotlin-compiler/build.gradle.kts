@@ -35,6 +35,8 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.26.2")
     implementation("io.methvin:directory-watcher:0.18.0")
     implementation("org.slf4j:slf4j-simple:1.6.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+
     //api("org.jetbrains.kotlin:kotlin-compiler-embeddable")
     //api("org.jetbrains.kotlin:kotlin-compiler-client-embeddable")
     //api("org.jetbrains.kotlin:kotlin-daemon-embeddable")

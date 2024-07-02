@@ -29,13 +29,14 @@ inline fun genBytes(initialCapacity: Int = 1024, block: ByteArrayOutputStream.()
 inline fun <T> ByteArray.processBytes(block: ByteArrayInputStream.() -> T): T =
     ByteArrayInputStream(this).run(block)
 
-fun InputStream.readInt(): Int {
-    val temp = readNBytes(4)
-    return ByteBuffer.wrap(temp).int
-}
+fun InputStream.readInt(): Int = ByteBuffer.wrap(readNBytes(4)).getInt()
+fun InputStream.readLong(): Long = ByteBuffer.wrap(readNBytes(8)).getLong()
 
 fun OutputStream.writeInt(value: Int) {
     write(ByteBuffer.allocate(4).putInt(value).array())
+}
+fun OutputStream.writeLong(value: Long) {
+    write(ByteBuffer.allocate(8).putLong(value).array())
 }
 
 fun InputStream.readStringLenListLen(): List<String> {

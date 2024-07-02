@@ -12,9 +12,11 @@ import java.io.*
 open class ProjectParser(val projectDir: File, val pipes: StdPipes) {
     private val modules = LinkedHashMap<File, ModuleParser>()
 
-    val allModules get() = modules.values.toList()
+    private val _allModules get() = modules.values.toList()
 
     val rootModule by lazy { module(projectDir) }
+
+    val allModules: List<ModuleParser> get() = rootModule.let { _allModules }
 
     val kotlinVersion get() = "2.0.0"
     val korgeVersion by lazy { allModules.firstNotNullOfOrNull { it.korgeVersion } ?: BuildConfig.LATEST_KORGE_VERSION }

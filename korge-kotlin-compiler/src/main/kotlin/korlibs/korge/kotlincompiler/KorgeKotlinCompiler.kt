@@ -15,7 +15,11 @@ import kotlin.time.*
 
 // https://github.com/JetBrains/kotlin/tree/master/compiler/build-tools/kotlin-build-tools-api
 // https://github.com/JetBrains/kotlin/blob/bc1ddd8205f6107c7aec87a9fb3bd7713e68902d/compiler/build-tools/kotlin-build-tools-api-tests/src/main/kotlin/compilation/model/JvmModule.kt
-class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = false) {
+class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = false, val pid: Long) {
+
+    val reloadSocketFile = File("$TMP_DIR/korge.run.$pid.socket")
+    var korgeVersion = BuildConfig.LATEST_KORGE_VERSION
+
     val stdout get() = pipes.out
     val stderr get() = pipes.err
 
@@ -116,7 +120,20 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             add(JvmMeta.javaExecutablePath)
 
             if (reload) {
-                add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:${BuildConfig.LATEST_KORGE_VERSION}").getSingleMavenArtifact(pipes).absolutePath}=")
+                val ARGS_SEPARATOR = "<:/:>"
+                val CMD_SEPARATOR = "<@/@>"
+
+                val params = listOf(
+                    reloadSocketFile.absolutePath,
+                    listOf<String>(),
+                    //"false",
+                    "true",
+                    classPaths.filter { it.isDirectory }.map { it.canonicalPath },
+                )
+
+                val agentArgs = params.joinToString(ARGS_SEPARATOR) { if (it is List<*>) it.joinToString(CMD_SEPARATOR) else "$it" }
+
+                add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:${korgeVersion}").getSingleMavenArtifact(pipes).absolutePath}=$agentArgs")
             }
 
             val addOpens = buildList {
@@ -310,13 +327,14 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             //listOf(File("/temp/1-common")),
             arguments = listOf(
                 "-module-name=${rootDir.name}",
-                //"-Xjdk-release=17",
+                "-Xjdk-release=21",
                 //"-Xuse-fast-jar-file-system",
                 "-jvm-target=21",
                 "-Xmulti-platform",
+                "-Xlambdas=indy",
                 //"-progressive",
-                "-language-version=1.9",
-                "-api-version=1.9",
+                "-language-version=2.0",
+                "-api-version=2.0",
                 "-no-stdlib",
                 "-no-reflect",
                 "-Xexpect-actual-classes",

@@ -2,6 +2,7 @@ package korlibs.korge.kotlincompiler
 
 import korlibs.korge.kotlincompiler.socket.*
 import korlibs.korge.kotlincompiler.util.*
+import kotlinx.coroutines.*
 import java.io.*
 import java.net.*
 import java.nio.channels.*
@@ -54,7 +55,9 @@ object KorgeKotlinCompilerCLIDaemon {
                     lastUpdate = System.currentTimeMillis()
                     threadExecutor.submit {
                         try {
-                            processClient(socket)
+                            runBlocking {
+                                processClient(socket)
+                            }
                         } finally {
                             System.gc()
                         }
@@ -73,18 +76,23 @@ object KorgeKotlinCompilerCLIDaemon {
         }
     }
 
-    private fun processClient(socket: SocketChannel) {
+    private suspend fun processClient(socket: SocketChannel) {
         while (socket.isOpen) {
             lastUpdate = System.currentTimeMillis()
             val packet = socket.readPacket()
             println("[DAEMON]: Received packet $packet")
             when (packet.type) {
                 Packet.TYPE_COMMAND -> {
-                    val (currentDir, args, envs) = packet.data.processBytes {
-                        val currentDir = readStringLen()
-                        val args = readStringLenListLen()
-                        val envs = readStringLenListLen()
-                        Triple(currentDir, args, envs)
+                    lateinit var currentDir: String
+                    lateinit var args: List<String>
+                    lateinit var envs: List<String>
+                    var pid: Long = 0L
+
+                    packet.data.processBytes {
+                        currentDir = readStringLen()
+                        args = readStringLenListLen()
+                        envs = readStringLenListLen()
+                        pid = readLong()
                     }
 
                     val envsMap = envs.associate {
@@ -103,7 +111,7 @@ object KorgeKotlinCompilerCLIDaemon {
 
                                 //stdout.println("CALLING CLI")
                                 try {
-                                    KorgeKotlinCompilerCLISimple(File(currentDir), pipes).main(args.toTypedArray(), envsMap)
+                                    KorgeKotlinCompilerCLISimple(File(currentDir), pipes).suspendMain(args.toTypedArray(), envsMap, pid = pid) { socket.isOpen }
                                     //stdout.println("AFTER CALLING CLI")
                                 } catch (e: ExitProcessException) {
                                     socket.writePacket(Packet(Packet.TYPE_END))
@@ -118,7 +126,7 @@ object KorgeKotlinCompilerCLIDaemon {
                         }
                     } finally {
                         socket.writePacket(Packet(Packet.TYPE_END))
-                        Thread.sleep(50L)
+                        delay(50L)
                         socket.close()
                     }
                 }
