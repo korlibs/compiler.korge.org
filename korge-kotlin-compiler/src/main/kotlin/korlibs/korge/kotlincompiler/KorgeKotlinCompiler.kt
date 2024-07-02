@@ -61,19 +61,19 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
 
     }
 
-    fun compileAndRun(module: Module, envs: Map<String, String> = mapOf()) {
+    suspend fun compileAndRun(module: Module, envs: Map<String, String> = mapOf()): Int {
         compileAllModules(module)
-        runModule(module, envs)
+        return runModule(module, envs)
     }
 
-    fun compileAllModules(module: Module) {
+    suspend fun compileAllModules(module: Module) {
         module.allModuleDeps.forEach {
             compileModule(it)
         }
         System.gc()
     }
 
-    fun compileModule(module: Module) {
+    suspend fun compileModule(module: Module) {
         val srcDirs = module.srcDirs
         val resourcesDirs = module.resourceDirs
         val libFiles = arrayListOf<File>()
@@ -98,24 +98,24 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
         //compiler.runJvm()
     }
 
-    fun distinctMap(src: Map<String, String>, dst: Map<String, String>): Map<String, String> {
-        val out = LinkedHashMap<String, String>()
-        for (key in (src.keys + dst.keys)) {
-            if (dst[key] != src[key]) {
-                (src[key] ?: dst[key])?.let { out[key] = it }
-            }
-        }
-        return out
-    }
+    //fun distinctMap(src: Map<String, String>, dst: Map<String, String>): Map<String, String> {
+    //    val out = LinkedHashMap<String, String>()
+    //    for (key in (src.keys + dst.keys)) {
+    //        if (dst[key] != src[key]) {
+    //            (src[key] ?: dst[key])?.let { out[key] = it }
+    //        }
+    //    }
+    //    return out
+    //}
 
-    fun runModule(module: Module, envs: Map<String, String> = mapOf()) {
+    suspend fun runModule(module: Module, envs: Map<String, String> = mapOf()): Int {
         val allClasspaths: Set<File> = module.allModuleDeps.flatMap { setOf(it.classesDir) + it.resourceDirs + it.getLibsFiles(pipes) }.toSet()
         //stdout.println("Running... ${module.main} extra.envs=${distinctMap(System.getenv(), envs)}")
         stdout.println("Running... ${module.main}")
-        runJvm(module.main, allClasspaths, envs)
+        return runJvm(module.main, allClasspaths, envs)
     }
 
-    fun runJvm(main: String, classPaths: Collection<File>, envs: Map<String, String> = mapOf()): Int {
+    suspend fun runJvm(main: String, classPaths: Collection<File>, envs: Map<String, String> = mapOf()): Int {
         val allArgs = buildList {
             add(JvmMeta.javaExecutablePath)
 
@@ -352,10 +352,6 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
                 //"C:\\Users\\soywiz\\projects\\korge-snake\\modules\\korma-tile-matching\\src\\commonMain\\kotlin",
             )
         )
-    }
-
-    fun getJavaCommandLine() {
-
     }
 
     fun getModifiedFiles(old: Map<File, Long>, new: Map<File, Long>): SourcesChanges.Known {

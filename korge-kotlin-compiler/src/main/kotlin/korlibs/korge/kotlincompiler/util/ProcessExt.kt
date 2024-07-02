@@ -1,16 +1,25 @@
 package korlibs.korge.kotlincompiler.util
 
+import kotlinx.coroutines.*
 import java.io.*
-import java.util.concurrent.*
+import kotlin.coroutines.*
+import kotlin.time.Duration.Companion.milliseconds
 
-fun ProcessBuilder.startEnsuringDestroyed(shutdownHook: Boolean = true): Process {
+suspend fun ProcessBuilder.startDetached(): Process {
+    return startEnsuringDestroyed(shutdownHook = false)
+}
+
+suspend fun ProcessBuilder.startEnsuringDestroyed(shutdownHook: Boolean = true): Process {
     val process = start()
     if (shutdownHook) {
         val shutdownHook = Thread { process.destroy(); process.destroyForcibly() }
         Runtime.getRuntime().addShutdownHook(shutdownHook)
-        threadExecutor.submit {
-            process.waitFor()
-            Runtime.getRuntime().removeShutdownHook(shutdownHook)
+        CoroutineScope(coroutineContext).launch {
+            try {
+                process.waitForSuspend()
+            } finally {
+                Runtime.getRuntime().removeShutdownHook(shutdownHook)
+            }
         }
     }
     return process
@@ -22,32 +31,39 @@ open class StdPipes(val out: PrintStream = System.out, val err: PrintStream = Sy
     companion object : StdPipes()
 }
 
-fun Process.redirectTo(pipes: StdPipes, wait: Boolean = false): Process = redirectTo(pipes.out, pipes.err, wait)
-fun Process.redirectToWaitFor(pipes: StdPipes): Int {
+suspend fun Process.redirectTo(pipes: StdPipes, wait: Boolean = false): Process = redirectTo(pipes.out, pipes.err, wait)
+suspend fun Process.redirectToWaitFor(pipes: StdPipes): Int {
     val process = redirectTo(pipes, wait = true)
-    return process.waitFor()
+    return waitForSuspend()
 }
 
-private fun Process.redirectTo(out: OutputStream, err: OutputStream, wait: Boolean = false): Process {
-    fun doExecute(inp: InputStream, out: OutputStream): Future<*> = virtualVirtualExecutor.submit {
-        while (true) {
-            val available = inp.available()
-            if (available == 0 && !isAlive) break
-            val bytes = inp.readNBytes(maxOf(available, 1))
-            if (bytes.isNotEmpty()) {
-                //if (bytes.isEmpty()) break
-                out.write(bytes)
+suspend fun Process.waitForSuspend(): Int {
+    while (isAlive) delay(50.milliseconds)
+    return exitValue()
+}
+
+private suspend fun Process.redirectTo(out: OutputStream, err: OutputStream, wait: Boolean = false): Process {
+    suspend fun doExecute(inp: InputStream, out: OutputStream) {
+        withContext(threadExecutorDispatcher) {
+            while (true) {
+                val available = inp.available()
+                if (available == 0 && !isAlive) break
+                val bytes = inp.readNBytes(maxOf(available, 1))
+                if (bytes.isNotEmpty()) {
+                    //if (bytes.isEmpty()) break
+                    out.write(bytes)
+                }
+                Thread.sleep(1L)
             }
-            Thread.sleep(1L)
         }
     }
 
-    val outProcess = doExecute(inputStream, out)
-    val errProcess = doExecute(errorStream, err)
+    val outProcess = CoroutineScope(coroutineContext).launch { doExecute(inputStream, out) }
+    val errProcess = CoroutineScope(coroutineContext).launch { doExecute(errorStream, err) }
 
     if (wait) {
-        outProcess.get()
-        errProcess.get()
+        outProcess.join()
+        errProcess.join()
     }
     return this
 }

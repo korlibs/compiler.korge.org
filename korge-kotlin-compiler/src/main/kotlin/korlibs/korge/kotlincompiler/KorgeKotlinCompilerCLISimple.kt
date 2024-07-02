@@ -212,10 +212,15 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
             .registerCommand("run", desc = "Builds and runs the specified <folder> containing a KorGE project") {
                 val path = it.removeFirstOrNull() ?: "."
                 //KorgeKotlinCompiler.compileModule()
-                KorgeKotlinCompiler(pipes, pid = pid).compileAndRun(
-                    ProjectParser(file(path), pipes).rootModule.module,
-                    envs = envs
-                )
+                var exitCode: Int = -1
+                try {
+                    exitCode = KorgeKotlinCompiler(pipes, pid = pid).compileAndRun(
+                        ProjectParser(file(path), pipes).rootModule.module,
+                        envs = envs
+                    )
+                } finally {
+                    out.println("Run completed exitCode=$exitCode")
+                }
             }
             .registerCommand("run:reload", desc = "Builds and runs the specified <folder> with hot reloading support") {
                 val path = it.removeFirstOrNull() ?: "."
@@ -238,12 +243,15 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 val project = ProjectParser(file(path), pipes)
                 compiler.korgeVersion = project.korgeVersion
 
-                val jobRun = CoroutineScope(threadExecutorDispatcher).launch {
-                    compiler.compileAndRun(project.rootModule.module, envs = envs)
-                }
+                var exitCode: Int = -1
 
-                jobWatch.join()
-                jobRun.join()
+                try {
+                    exitCode = compiler.compileAndRun(project.rootModule.module, envs = envs)
+                } finally {
+                    out.println("Run completed exitCode=$exitCode")
+                    jobWatch.cancel()
+                    out.println("Cancelled directory watching")
+                }
             }
             .registerCommand("debug", desc = "Prints debug information") {
                 for ((thread, stacktrace) in Thread.getAllStackTraces()) {
@@ -302,7 +310,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
         processor.process(args)
     }
 
-    private fun openInIde(projectPath: File) {
+    private suspend fun openInIde(projectPath: File) {
         while (true) {
             val projectPath = projectPath.canonicalFile
             val baseFolder = when (OS.CURRENT) {
@@ -330,7 +338,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 if (OS.CURRENT == OS.LINUX) add("sh")
                 add(exe.absolutePath)
                 add(projectPath.absolutePath)
-            }).start()
+            }).startDetached()
             return
         }
     }
@@ -343,14 +351,14 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
         val allSrcDirs = parsed.allModules.flatMap { it.module.srcDirs.filter { it.isDirectory } }.toSet()
         pipes.out.println("parsed.allModules.srcDirs: $allSrcDirs")
 
-        fun recompile() {
+        suspend fun recompile() {
             pipes.out.println("Recompiling...")
-            val start = System.currentTimeMillis()
-            KorgeKotlinCompiler(pipes, pid = pid).compileAllModules(
-                ProjectParser(file(path), pipes).rootModule.module,
-            )
-            val end = System.currentTimeMillis()
             try {
+                val start = System.currentTimeMillis()
+                KorgeKotlinCompiler(pipes, pid = pid).compileAllModules(
+                    ProjectParser(file(path), pipes).rootModule.module,
+                )
+                val end = System.currentTimeMillis()
                 onRecompile(start, end)
             } catch (e: Throwable) {
                 e.printStackTrace()
@@ -376,7 +384,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
         }
     }
 
-    private fun forgeInstaller(vararg args: String) {
+    private suspend fun forgeInstaller(vararg args: String) {
         when (OS.CURRENT) {
             OS.WINDOWS -> {
                 val dir = file(USER_HOME, "Downloads").takeIf { it.isDirectory } ?: KORGE_DIR
@@ -385,7 +393,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 ProcessBuilder()
                     .command("cmd", "/c", "install-korge-forge.cmd", *args)
                     .directory(dir)
-                    .start()
+                    .startDetached()
                     .redirectToWaitFor(pipes)
             }
 
@@ -396,7 +404,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 ProcessBuilder()
                     .command("sh", "install-korge-forge.sh", *args)
                     .directory(dir)
-                    .start()
+                    .startDetached()
                     .redirectToWaitFor(pipes)
             }
         }

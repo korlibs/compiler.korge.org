@@ -11,7 +11,7 @@ object JvmMeta {
             .orElseThrow()
     }
 
-    fun runOtherEntryPointSameClassPath(
+    suspend fun runOtherEntryPointSameClassPath(
         clazz: Any, vararg args: String, envs: Map<String, String> = emptyMap(),
         cwd: File = File(".").absoluteFile,
         waitEnd: Boolean = true, shutdownHook: Boolean = true, inheritIO: Boolean = true,
@@ -42,7 +42,7 @@ object JvmMeta {
             .directory(cwd)
             .also { it.environment().putAll(envs) }
             .startEnsuringDestroyed(shutdownHook = shutdownHook)
-        if (waitEnd) process.waitFor()
+        if (waitEnd) process.waitForSuspend()
         return process
     }
 }

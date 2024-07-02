@@ -7,6 +7,7 @@ import korlibs.korge.kotlincompiler.BuildConfig
 import korlibs.korge.kotlincompiler.git.*
 import korlibs.korge.kotlincompiler.maven.*
 import korlibs.korge.kotlincompiler.util.*
+import kotlinx.coroutines.*
 import java.io.*
 
 open class ProjectParser(val projectDir: File, val pipes: StdPipes) {
@@ -37,7 +38,9 @@ open class ProjectParser(val projectDir: File, val pipes: StdPipes) {
     }
 
     fun module(moduleDir: File): ModuleParser = modules.getOrPut(moduleDir.canonicalFile) {
-        ModuleParser(this, moduleDir.canonicalFile).also { it.parse() }
+        runBlocking {
+            ModuleParser(this@ProjectParser, moduleDir.canonicalFile).also { it.parse() }
+        }
     }
 }
 
@@ -66,7 +69,7 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
     }
 
 
-    fun parse(): Boolean {
+    suspend fun parse(): Boolean {
         check(moduleDir.exists()) { "'${moduleDir.absolutePath}' doesn't exists"}
         var contributions = 0
         File(moduleDir, "gradle/libs.versions.toml").takeIfExists()?.let { if (tryParseLibsVersionsToml(it)) contributions++ }
@@ -91,7 +94,7 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
         return false
     }
 
-    fun parseDependency(depStr: String): Boolean {
+    suspend fun parseDependency(depStr: String): Boolean {
         when {
             depStr.startsWith("https://") -> {
                 // parse this url into owner, repo name, tag, path, and extra hash
@@ -129,7 +132,7 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
         return true
     }
 
-    fun parseCommonYaml(file: File): Boolean {
+    suspend fun parseCommonYaml(file: File): Boolean {
         //println("parseCommonYaml: $file")
         val root = Yaml.decode(file.readText()).dyn
         root["name"].toStringOrNull()?.let { moduleName = it }
@@ -141,18 +144,18 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
         return true
     }
 
-    fun parseKProjectYml(file: File): Boolean = parseCommonYaml(file)
+    suspend fun parseKProjectYml(file: File): Boolean = parseCommonYaml(file)
 
-    fun parseKorgeYml(file: File): Boolean = parseCommonYaml(file)
+    suspend fun parseKorgeYml(file: File): Boolean = parseCommonYaml(file)
 
     // AMPER root project
-    fun parseProjectYml(file: File): Boolean = parseCommonYaml(file)
+    suspend fun parseProjectYml(file: File): Boolean = parseCommonYaml(file)
 
     // AMPER module
-    fun parseModuleYml(file: File): Boolean = parseCommonYaml(file)
+    suspend fun parseModuleYml(file: File): Boolean = parseCommonYaml(file)
 
     // Best effort without executing code
-    fun parseBuildGradleKts(file: File): Boolean {
+    suspend fun parseBuildGradleKts(file: File): Boolean {
         var korgeBlockOnce = false
         var korgeBlock = false
         for (line in file.readLines()) {

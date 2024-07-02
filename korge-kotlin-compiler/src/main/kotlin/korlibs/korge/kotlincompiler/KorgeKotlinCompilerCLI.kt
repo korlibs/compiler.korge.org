@@ -4,6 +4,7 @@ package korlibs.korge.kotlincompiler
 
 import korlibs.korge.kotlincompiler.socket.*
 import korlibs.korge.kotlincompiler.util.*
+import kotlinx.coroutines.*
 import java.io.*
 import java.net.*
 import java.nio.channels.*
@@ -23,6 +24,10 @@ val TMP_DIR by lazy { File(System.getProperty("java.io.tmpdir")) }
 object KorgeKotlinCompilerCLI {
     @JvmStatic
     fun main(args: Array<String>) {
+        runBlocking { mainSuspend(args) }
+    }
+
+    suspend fun mainSuspend(args: Array<String>) {
         //RecursiveDirectoryWatcher.watch(File("../korge-kotlin-compiler/src")) { println(it) } .await()
         //RecursiveDirectoryWatcher.watch(File("..")) { println(it) }.await()
         val currentDir = File(".").canonicalFile
