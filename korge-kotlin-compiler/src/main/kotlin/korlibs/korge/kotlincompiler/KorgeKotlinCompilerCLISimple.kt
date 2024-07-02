@@ -227,17 +227,21 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 //KorgeKotlinCompiler.compileModule()
                 val compiler = KorgeKotlinCompiler(pipes, reload = true, pid = pid)
 
-                val jobWatch = CoroutineScope(threadExecutorDispatcher).launch {
-                    buildWatch(path, pid, first = false, onRecompile = { start, end ->
-                        try {
-                            out.println("Connecting to ${compiler.reloadSocketFile.absolutePath} to notify reload... start=$start, end=$end")
-                            SocketChannel.open(UnixDomainSocketAddress.of(compiler.reloadSocketFile.absolutePath))
-                                .also { it.write(ByteBuffer.allocate(16).putLong(start).putLong(end).flip()) }
+                val jobWatch = CoroutineScope(coroutineContext).launch {
+                    try {
+                        buildWatch(path, pid, first = false, onRecompile = { start, end ->
+                            try {
+                                out.println("Connecting to ${compiler.reloadSocketFile.absolutePath} to notify reload... start=$start, end=$end")
+                                SocketChannel.open(UnixDomainSocketAddress.of(compiler.reloadSocketFile.absolutePath))
+                                    .also { it.write(ByteBuffer.allocate(16).putLong(start).putLong(end).flip()) }
                                 //.close()
-                        } catch (e: Throwable) {
-                            e.printStackTrace()
-                        }
-                    }) { checkAlive() }
+                            } catch (e: Throwable) {
+                                e.printStackTrace()
+                            }
+                        }) { checkAlive() }
+                    } finally {
+                        out.println("Cancelled directory watching")
+                    }
                 }
 
                 val project = ProjectParser(file(path), pipes)
@@ -250,13 +254,16 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 } finally {
                     out.println("Run completed exitCode=$exitCode")
                     jobWatch.cancel()
-                    out.println("Cancelled directory watching")
+                    jobWatch.join()
+                    //delay(50.milliseconds)
                 }
             }
             .registerCommand("debug", desc = "Prints debug information") {
+                out.println("THREADS: ${Thread.getAllStackTraces().size}")
                 for ((thread, stacktrace) in Thread.getAllStackTraces()) {
+                    //out.println("")
                     out.println("Thread: $thread")
-                    out.println("  ${stacktrace.toList().joinToString("\n  ")}")
+                    //out.println("  ${stacktrace.toList().joinToString("\n  ")}")
                 }
                 //Thread.getAllStackTraces().keys
             }
@@ -373,6 +380,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
 
         try {
             while (checkAlive()) {
+                //out.println("ALIVE")
                 if (modified.value > 0) {
                     modified.value = 0
                     recompile()
@@ -381,6 +389,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
             }
         } finally {
             watcher.close()
+            //out.println("CLOSED")
         }
     }
 
