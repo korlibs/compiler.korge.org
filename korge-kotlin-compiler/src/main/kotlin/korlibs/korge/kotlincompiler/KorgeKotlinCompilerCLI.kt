@@ -33,8 +33,12 @@ object KorgeKotlinCompilerCLI {
         val currentDir = File(".").canonicalFile
 
         if (args.firstOrNull() == "kill") {
-            println("Killing all java.exe processes...")
-            ProcessBuilder("taskkill", "/F", "/IM", "java.exe", "/T").inheritIO().startEnsuringDestroyed().waitForSuspend()
+            println("Killing all java processes...")
+            if (OS.CURRENT == OS.WINDOWS) {
+                ProcessBuilder("taskkill", "/F", "/IM", "java.exe", "/T").inheritIO().startEnsuringDestroyed().waitForSuspend()
+            } else {
+                ProcessBuilder("killall", "-9", "java").inheritIO().startEnsuringDestroyed().waitForSuspend()
+            }
             return
         }
 
