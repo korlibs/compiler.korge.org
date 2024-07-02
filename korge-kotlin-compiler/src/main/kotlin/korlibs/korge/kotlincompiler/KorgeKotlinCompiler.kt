@@ -124,11 +124,11 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
                 val CMD_SEPARATOR = "<@/@>"
 
                 val params = listOf(
-                    reloadSocketFile.absolutePath,
-                    listOf<String>(),
-                    //"false",
-                    "true",
-                    classPaths.filter { it.isDirectory }.map { it.canonicalPath },
+                    reloadSocketFile.absolutePath, // reload socket path
+                    listOf<String>(), // continuous command
+                    "false", // redefine classes
+                    classPaths.filter { it.isDirectory }.map { it.canonicalPath }, // classpaths / class roots
+                    //classPaths.map { it.canonicalPath },
                 )
 
                 val agentArgs = params.joinToString(ARGS_SEPARATOR) { if (it is List<*>) it.joinToString(CMD_SEPARATOR) else "$it" }
@@ -163,7 +163,12 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
         return ProcessBuilder(allArgs)
             .also { builder -> builder.environment()
                 .also { it.clear() }
-                .also { it.putAll(envs + mapOf("DEBUG_KORGE_RELOAD_AGENT" to "true")) }
+                .also {
+                    it.putAll(envs + mapOf(
+                        "KORGE_AUTORELOAD" to "$reload",
+                        "DEBUG_KORGE_RELOAD_AGENT" to "$reload"
+                    ))
+                }
             }
             .startEnsuringDestroyed()
             .redirectToWaitFor(pipes)
