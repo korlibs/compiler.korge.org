@@ -267,7 +267,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                 }
                 //Thread.getAllStackTraces().keys
             }
-            .registerCommand("sleep", desc = "Sleeps indefinitely (for debugging)") {
+            .registerCommand("debug:sleep", desc = "Sleeps indefinitely (for debugging)") {
                 out.println("Sleeping...")
                 try {
                     while (true) {
