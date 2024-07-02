@@ -96,11 +96,8 @@ object KorgeKotlinCompilerCLIDaemon {
                         PacketOutputStream(socket, Packet.TYPE_STDOUT).use { stdoutStream ->
                             PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
                                 val pipes = StdPipes(stdoutStream, stderrStream)
-                                val stdout = pipes.out
-                                val stderr = pipes.err
 
                                 //stdout.println("envsMap: $envsMap")
-
                                 //System.setOut(stdout)
                                 //System.setErr(stderr)
 
@@ -115,7 +112,7 @@ object KorgeKotlinCompilerCLIDaemon {
                                     exitProcess(e.exitCode)
                                 } catch (e: Throwable) {
                                     //stdout.println("EXCEPTION CLI")
-                                    e.printStackTrace(stderr)
+                                    e.printStackTrace(pipes.err)
                                 }
                             }
                         }
