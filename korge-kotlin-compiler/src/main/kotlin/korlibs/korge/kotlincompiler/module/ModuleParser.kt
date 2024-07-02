@@ -16,6 +16,9 @@ open class ProjectParser(val projectDir: File, val pipes: StdPipes) {
 
     val rootModule by lazy { module(projectDir) }
 
+    val kotlinVersion get() = "2.0.0"
+    val korgeVersion by lazy { allModules.firstNotNullOfOrNull { it.korgeVersion } ?: BuildConfig.LATEST_KORGE_VERSION }
+
     open fun artifactTransformer(artifact: MavenArtifact): MavenArtifact {
         var artifact = artifact
         if (artifact.group == "com.soywiz.korlibs.korge2" && artifact.name == "korge") {
@@ -54,7 +57,7 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
             libs = (
                 listOf(
                     MavenArtifact("org.jetbrains.kotlin", "kotlin-stdlib", "2.0.0"),
-                    MavenArtifact("com.soywiz.korge", "korge-jvm", BuildConfig.LATEST_KORGE_VERSION),
+                    MavenArtifact("com.soywiz.korge", "korge-jvm", rootProject.korgeVersion),
                 ) + mavenDeps.map { it.artifact }
             ).toSet(),
         )
@@ -128,6 +131,7 @@ class ModuleParser(val rootProject: ProjectParser, val moduleDir: File) {
         //println("parseCommonYaml: $file")
         val root = Yaml.decode(file.readText()).dyn
         root["name"].toStringOrNull()?.let { moduleName = it }
+        root["korge_version"].toStringOrNull()?.let { korgeVersion = it }
 
         for (dep in root["dependencies"].list) {
             parseDependency(dep.str)

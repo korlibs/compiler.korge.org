@@ -20,30 +20,30 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
     val stderr get() = pipes.err
 
     companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            println("Running main...")
-            println(JvmMeta.javaExecutablePath)
-            val libs = setOf(
-                MavenArtifact("org.jetbrains.kotlin", "kotlin-stdlib", "2.0.0"),
-                MavenArtifact("com.soywiz.korge", "korge-jvm", BuildConfig.LATEST_KORGE_VERSION)
-            )
-            val mod1 = Module(
-                projectDir = File("C:\\Users\\soywiz\\projects\\korge-snake\\modules\\korma-tile-matching"),
-                libs = libs,
-                name = "korge-snake",
-            )
-            val snakeModule = Module(
-                projectDir = File("C:\\Users\\soywiz\\projects\\korge-snake"),
-                moduleDeps = setOf(mod1),
-                libs = libs,
-                name = "korge-snake",
-            )
-            val compiler = KorgeKotlinCompiler()
-            //compileAndRun(snakeModule, mapOf("KORGE_HEADLESS" to "true", "KORGE_IPC" to "C:\\Users\\soywiz\\AppData\\Local\\Temp\\/KORGE_IPC-304208"))
-            //repeat(3) { compiler.compileAllModules(snakeModule) }
-            compiler.compileAndRun(snakeModule)
-        }
+        //@JvmStatic
+        //fun main(args: Array<String>) {
+        //    println("Running main...")
+        //    println(JvmMeta.javaExecutablePath)
+        //    val libs = setOf(
+        //        MavenArtifact("org.jetbrains.kotlin", "kotlin-stdlib", "2.0.0"),
+        //        MavenArtifact("com.soywiz.korge", "korge-jvm", BuildConfig.LATEST_KORGE_VERSION)
+        //    )
+        //    val mod1 = Module(
+        //        projectDir = File("C:\\Users\\soywiz\\projects\\korge-snake\\modules\\korma-tile-matching"),
+        //        libs = libs,
+        //        name = "korge-snake",
+        //    )
+        //    val snakeModule = Module(
+        //        projectDir = File("C:\\Users\\soywiz\\projects\\korge-snake"),
+        //        moduleDeps = setOf(mod1),
+        //        libs = libs,
+        //        name = "korge-snake",
+        //    )
+        //    val compiler = KorgeKotlinCompiler()
+        //    //compileAndRun(snakeModule, mapOf("KORGE_HEADLESS" to "true", "KORGE_IPC" to "C:\\Users\\soywiz\\AppData\\Local\\Temp\\/KORGE_IPC-304208"))
+        //    //repeat(3) { compiler.compileAllModules(snakeModule) }
+        //    compiler.compileAndRun(snakeModule)
+        //}
 
         private val service by lazy { CompilationService.loadImplementation(ClassLoader.getSystemClassLoader()) }
         //private val service = CompilationService.loadImplementation(KorgeKotlinCompiler::class.java.classLoader)
@@ -94,8 +94,19 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
         //compiler.runJvm()
     }
 
+    fun distinctMap(src: Map<String, String>, dst: Map<String, String>): Map<String, String> {
+        val out = LinkedHashMap<String, String>()
+        for (key in (src.keys + dst.keys)) {
+            if (dst[key] != src[key]) {
+                (src[key] ?: dst[key])?.let { out[key] = it }
+            }
+        }
+        return out
+    }
+
     fun runModule(module: Module, envs: Map<String, String> = mapOf()) {
         val allClasspaths: Set<File> = module.allModuleDeps.flatMap { setOf(it.classesDir) + it.resourceDirs + it.getLibsFiles(pipes) }.toSet()
+        //stdout.println("Running... ${module.main} extra.envs=${distinctMap(System.getenv(), envs)}")
         stdout.println("Running... ${module.main}")
         runJvm(module.main, allClasspaths, envs)
     }
@@ -105,7 +116,7 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             add(JvmMeta.javaExecutablePath)
 
             if (reload) {
-                add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:6.0.0-alpha5").getSingleMavenArtifact(pipes).absolutePath}=")
+                add("-javaagent:${MavenArtifact("com.soywiz.korge:korge-reload-agent:${BuildConfig.LATEST_KORGE_VERSION}").getSingleMavenArtifact(pipes).absolutePath}=")
             }
 
             val addOpens = buildList {
@@ -131,9 +142,12 @@ class KorgeKotlinCompiler(val pipes: StdPipes = StdPipes, val reload: Boolean = 
             add(classPaths.joinToString(File.pathSeparator))
             add(main)
         }
-        //stdout.println(allArgs.joinToString(" "))
+        //stdout.println("ARGS: " + allArgs.joinToString(" "))
         return ProcessBuilder(allArgs)
-            .also { it.environment().putAll(envs + mapOf("DEBUG_KORGE_RELOAD_AGENT" to "true")) }
+            .also { builder -> builder.environment()
+                .also { it.clear() }
+                .also { it.putAll(envs + mapOf("DEBUG_KORGE_RELOAD_AGENT" to "true")) }
+            }
             .startEnsuringDestroyed()
             .redirectToWaitFor(pipes)
     }

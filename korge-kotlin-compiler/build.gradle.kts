@@ -107,6 +107,7 @@ tasks {
         //outputs.file("build/libs/korge-kotlin-compiler-all.tar.xz")
     }
     val install by creating(Copy::class) {
+        group = "install"
         dependsOn(shutdownDaemon, fatJar)
         from("build/libs/korge-kotlin-compiler-all.jar")
         rename { "korge-kotlin-compiler-all.$version.jar" }
