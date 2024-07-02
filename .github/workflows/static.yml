@@ -6,6 +6,7 @@ on:
   push:
     branches: ["main"]
     paths:
+      - .github/workflows/static.yml
       - docs/**
 
   # Allows you to run this workflow manually from the Actions tab
@@ -35,6 +36,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Copy wrappers
+        run: cp korge docs; cp korge.bat docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
