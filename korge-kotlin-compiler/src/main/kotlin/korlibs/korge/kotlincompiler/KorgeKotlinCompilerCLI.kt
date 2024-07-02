@@ -34,7 +34,7 @@ object KorgeKotlinCompilerCLI {
 
         if (args.firstOrNull() == "kill") {
             println("Killing all java.exe processes...")
-            ProcessBuilder("taskkill", "/F", "/IM", "java.exe", "/T").inheritIO().start().waitFor()
+            ProcessBuilder("taskkill", "/F", "/IM", "java.exe", "/T").inheritIO().startEnsuringDestroyed().waitForSuspend()
             return
         }
 
@@ -89,6 +89,21 @@ object KorgeKotlinCompilerCLI {
                     writeLong(ProcessHandle.current().pid())
                 })
 
+                Runtime.getRuntime().addShutdownHook(Thread {
+                    //System.out.println("Shutting down ... [1]");
+                    try {
+                        client.writePacket(Packet(Packet.TYPE_END))
+                        //System.out.println("Shutting down ... [2]");
+                        //Thread.sleep(100L)
+                        //System.out.println("Shutting down ... [3]");
+                        client.close()
+                        //Thread.sleep(2000L)
+                        //System.out.println("Shutting down ... [4]");
+                    } catch (e: ClosedChannelException) {
+
+                    }
+                })
+
                 while (client.isOpen) {
                     val packet = client.readPacket()
                     if (verbose) println("[CLIENT] Received packet $packet")
@@ -110,6 +125,7 @@ object KorgeKotlinCompilerCLI {
                 }
             }
         } finally {
+            //println("ENDING")
             virtualVirtualExecutor.awaitTermination(10L, TimeUnit.MILLISECONDS)
             threadExecutor.awaitTermination(10L, TimeUnit.MILLISECONDS)
         }

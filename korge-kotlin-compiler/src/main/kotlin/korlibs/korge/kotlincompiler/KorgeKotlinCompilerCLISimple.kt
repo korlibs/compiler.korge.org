@@ -15,6 +15,7 @@ import java.nio.channels.SocketChannel
 import java.security.*
 import kotlin.coroutines.*
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
     val out get() = pipes.out
@@ -253,8 +254,7 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                     exitCode = compiler.compileAndRun(project.rootModule.module, envs = envs)
                 } finally {
                     out.println("Run completed exitCode=$exitCode")
-                    jobWatch.cancel()
-                    jobWatch.join()
+                    jobWatch.cancelAndJoin()
                     //delay(50.milliseconds)
                 }
             }
@@ -266,6 +266,16 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                     //out.println("  ${stacktrace.toList().joinToString("\n  ")}")
                 }
                 //Thread.getAllStackTraces().keys
+            }
+            .registerCommand("sleep", desc = "Sleeps indefinitely (for debugging)") {
+                out.println("Sleeping...")
+                try {
+                    while (true) {
+                        delay(1.seconds)
+                    }
+                } finally {
+                    out.println("Completed sleeping...")
+                }
             }
             /*
 

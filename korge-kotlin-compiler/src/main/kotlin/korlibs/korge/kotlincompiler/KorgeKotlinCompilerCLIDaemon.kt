@@ -7,6 +7,7 @@ import java.io.*
 import java.net.*
 import java.nio.channels.*
 import java.nio.file.*
+import kotlin.coroutines.*
 import kotlin.system.*
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -81,7 +82,12 @@ object KorgeKotlinCompilerCLIDaemon {
             lastUpdate = System.currentTimeMillis()
             val packet = socket.readPacket()
             println("[DAEMON]: Received packet $packet")
+            //JOptionPane.showConfirmDialog(null, "[DAEMON]: Received packet $packet")
             when (packet.type) {
+                Packet.TYPE_END -> {
+                    //JOptionPane.showConfirmDialog(null, "[DAEMON]: END")
+                    socket.close()
+                }
                 Packet.TYPE_COMMAND -> {
                     lateinit var currentDir: String
                     lateinit var args: List<String>
@@ -100,34 +106,49 @@ object KorgeKotlinCompilerCLIDaemon {
                         parts[0] to parts.getOrElse(1) { "" }
                     }
 
-                    try {
-                        PacketOutputStream(socket, Packet.TYPE_STDOUT).use { stdoutStream ->
-                            PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
-                                val pipes = StdPipes(stdoutStream, stderrStream)
+                    val job = CoroutineScope(threadExecutorDispatcher).launch {
+                        try {
+                            PacketOutputStream(socket, Packet.TYPE_STDOUT).use { stdoutStream ->
+                                PacketOutputStream(socket, Packet.TYPE_STDERR).use { stderrStream ->
+                                    val pipes = StdPipes(stdoutStream, stderrStream)
 
-                                //stdout.println("envsMap: $envsMap")
-                                //System.setOut(stdout)
-                                //System.setErr(stderr)
+                                    //stdout.println("envsMap: $envsMap")
+                                    //System.setOut(stdout)
+                                    //System.setErr(stderr)
 
-                                //stdout.println("CALLING CLI")
-                                try {
-                                    KorgeKotlinCompilerCLISimple(File(currentDir), pipes).suspendMain(args.toTypedArray(), envsMap, pid = pid) { socket.isOpen }
-                                    //stdout.println("AFTER CALLING CLI")
-                                } catch (e: ExitProcessException) {
-                                    socket.writePacket(Packet(Packet.TYPE_END))
-                                    Thread.sleep(50L)
-                                    socket.close()
-                                    exitProcess(e.exitCode)
-                                } catch (e: Throwable) {
-                                    //stdout.println("EXCEPTION CLI")
-                                    e.printStackTrace(pipes.err)
+                                    //stdout.println("CALLING CLI")
+                                    try {
+                                        KorgeKotlinCompilerCLISimple(File(currentDir), pipes).suspendMain(
+                                            args.toTypedArray(),
+                                            envsMap,
+                                            pid = pid
+                                        ) { socket.isOpen }
+                                        //stdout.println("AFTER CALLING CLI")
+                                    } catch (e: ExitProcessException) {
+                                        socket.writePacket(Packet(Packet.TYPE_END))
+                                        Thread.sleep(50L)
+                                        socket.close()
+                                        exitProcess(e.exitCode)
+                                    } catch (e: Throwable) {
+                                        //stdout.println("EXCEPTION CLI")
+                                        e.printStackTrace(pipes.err)
+                                    }
                                 }
                             }
+                        } finally {
+                            socket.writePacket(Packet(Packet.TYPE_END))
+                            delay(50L)
+                            socket.close()
                         }
-                    } finally {
-                        socket.writePacket(Packet(Packet.TYPE_END))
-                        delay(50L)
-                        socket.close()
+                    }
+                    CoroutineScope(coroutineContext).launch {
+                        try {
+                            while (socket.isOpen) {
+                                delay(50L)
+                            }
+                        } finally {
+                            job.cancelAndJoin()
+                        }
                     }
                 }
             }

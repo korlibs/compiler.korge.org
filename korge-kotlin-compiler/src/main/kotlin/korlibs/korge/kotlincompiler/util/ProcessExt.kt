@@ -2,6 +2,7 @@ package korlibs.korge.kotlincompiler.util
 
 import kotlinx.coroutines.*
 import java.io.*
+import kotlin.concurrent.*
 import kotlin.coroutines.*
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -12,13 +13,13 @@ suspend fun ProcessBuilder.startDetached(): Process {
 suspend fun ProcessBuilder.startEnsuringDestroyed(shutdownHook: Boolean = true): Process {
     val process = start()
     if (shutdownHook) {
-        val shutdownHook = Thread { process.destroy(); process.destroyForcibly() }
-        Runtime.getRuntime().addShutdownHook(shutdownHook)
+        val shutdownHookThread = thread(start = false, name = "Process.destroy.${process.pid()}") { process.destroy(); process.destroyForcibly() }
+        Runtime.getRuntime().addShutdownHook(shutdownHookThread)
         CoroutineScope(coroutineContext).launch {
             try {
                 process.waitForSuspend()
             } finally {
-                Runtime.getRuntime().removeShutdownHook(shutdownHook)
+                Runtime.getRuntime().removeShutdownHook(shutdownHookThread)
             }
         }
     }
@@ -38,8 +39,13 @@ suspend fun Process.redirectToWaitFor(pipes: StdPipes): Int {
 }
 
 suspend fun Process.waitForSuspend(): Int {
-    while (isAlive) delay(50.milliseconds)
-    return exitValue()
+    try {
+        while (isAlive) delay(50.milliseconds)
+        return exitValue()
+    } finally {
+        destroy()
+        destroyForcibly()
+    }
 }
 
 private suspend fun Process.redirectTo(out: OutputStream, err: OutputStream, wait: Boolean = false): Process {
