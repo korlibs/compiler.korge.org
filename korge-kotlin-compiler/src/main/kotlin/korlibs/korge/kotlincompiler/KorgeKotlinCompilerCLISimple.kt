@@ -44,10 +44,9 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
         out.println("Updating to... $version")
 
         val downloadUrl = "https://github.com/korlibs/compiler.korge.org/releases/download/v$version/korge-kotlin-compiler-all.tar.xz"
-        out.println("URL: $downloadUrl")
+        out.println("- URL: $downloadUrl")
         val sha256 = MessageDigest.getInstance("SHA-256").digest(URL(downloadUrl).readBytes()).toHexString().lowercase()
-        out.println("SHA256: $sha256")
-
+        out.println("- SHA256: $sha256")
 
         //https://github.com/korlibs/compiler.korge.org/releases/download/v%INSTALLER_VERSION%/korge-kotlin-compiler-all.tar.xz
 

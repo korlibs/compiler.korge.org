@@ -1,6 +1,8 @@
-import org.apache.tools.ant.taskdefs.condition.Os
+import org.apache.tools.ant.taskdefs.condition.*
 import org.gradle.api.tasks.testing.logging.*
+import org.jetbrains.kotlin.daemon.common.*
 import org.jetbrains.kotlin.gradle.dsl.*
+import java.security.*
 
 plugins {
     java
@@ -107,6 +109,23 @@ tasks {
         commandLine("tar", "-cJf", "korge-kotlin-compiler-all.tar.xz", "korge-kotlin-compiler-all.jar")
         //inputs.file("build/libs/korge-kotlin-compiler-all.tar")
         //outputs.file("build/libs/korge-kotlin-compiler-all.tar.xz")
+    }
+    val createJarPackUpdateWrappers by creating(Task::class) {
+        dependsOn(createJarPack)
+        doLast {
+            val bytes = file("build/libs/korge-kotlin-compiler-all.tar.xz").readBytes()
+
+            val sha256 = MessageDigest.getInstance("SHA-256").digest(bytes).toHexString().lowercase()
+
+            fun String.replaceVersion(): String {
+                return this
+                    .replace(Regex("INSTALLER_VERSION=.*")) { "INSTALLER_VERSION=$version" }
+                    .replace(Regex("INSTALLER_SHA256=.*")) { "INSTALLER_SHA256=$sha256" }
+            }
+
+            file("build/libs/korge").writeText(rootProject.file("korge").readText().replaceVersion())
+            file("build/libs/korge.bat").writeText(rootProject.file("korge.bat").readText().replaceVersion())
+        }
     }
     val install by creating(Copy::class) {
         group = "install"
