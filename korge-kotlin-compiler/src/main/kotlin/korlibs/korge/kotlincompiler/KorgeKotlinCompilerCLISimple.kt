@@ -276,6 +276,24 @@ class KorgeKotlinCompilerCLISimple(val currentDir: File, val pipes: StdPipes) {
                     out.println("Completed sleeping...")
                 }
             }
+            .registerCommand("defender", desc = "Adds project <folder> to Windows Defender exclusions") {
+                val path = File(it.removeFirstOrNull() ?: ".").canonicalPath
+
+                if (OS.CURRENT != OS.WINDOWS) {
+                    error("Only implemented on windows")
+                }
+
+                ProcessBuilder(
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    "Start-Process 'powershell.exe' -ArgumentList '-NoProfile -inputformat none -outputformat none -NonInteractive -Command \"Add-MpPreference -ExclusionPath $path\"' -Verb RunAs -WindowStyle Hidden"
+                )
+                    .startEnsuringDestroyed()
+                    .redirectToWaitFor(pipes)
+            }
             /*
 
             .registerCommand("package:js", desc = "Creates a package for JavaScript (JS)") {
