@@ -8,9 +8,14 @@ SET INSTALLER_SHA256=c34605db97a7bab75c661d3df3faec6961410a5159083d3b9da347cda0c
 
 SET KORGEDIR=%USERPROFILE%\.korge
 SET JAVA=%KORGEDIR%\jre-21\bin\java.exe
+SET XZ=%KORGEDIR%\xzdec.exe
 SET INSTALLER_PATH=%KORGEDIR%\compiler
 SET INSTALLER_LOCAL_FILE=%INSTALLER_PATH%\korge-kotlin-compiler-all.%INSTALLER_VERSION%.jar
 MKDIR "%INSTALLER_PATH%" 2> NUL
+
+IF NOT EXIST "%XZ%" (
+    CALL :DOWNLOAD_FILE "https://github.com/korlibs/universal-jre/releases/download/0.0.1/xzdec.exe" "%XZ%" "D55CF3EE369E407AD2D9EF1098C3DDE112139593226A68E42396D1EA392C8037"
+)
 
 IF NOT EXIST "%INSTALLER_LOCAL_FILE%" (
     CALL :DOWNLOAD_FILE "%INSTALLER_URL%" "%INSTALLER_LOCAL_FILE%.tar.xz" "%INSTALLER_SHA256%"
@@ -32,9 +37,9 @@ IF NOT EXIST "%JAVA%" (
     DEL "%KORGEDIR%\jre-21.tar.xz.sha256" > NUL 2> NUL
 )
 
-"%JAVA%" -jar "%INSTALLER_LOCAL_FILE%" %*
+"%JAVA%" -jar "%INSTALLER_LOCAL_FILE%" %* & set SAVEDRC=!ERRORLEVEL! & call;
 
-EXIT /B
+EXIT /B %SAVEDRC%
 
 :DOWNLOAD_FILE
     SET URL=%~1
@@ -72,7 +77,8 @@ EXIT /b
 
     MKDIR "%OUT%" > NUL 2> NUL
     echo Extracting %INPUT_FILE%...
-    tar --strip-components %STRIP_COMPONENTS% -C "%OUT%" -xf "%INPUT_FILE%"
+    REM tar --strip-components %STRIP_COMPONENTS% -C "%OUT%" -xf "%INPUT_FILE%"
+    "%XZ%" -d < "%INPUT_FILE%" | tar --strip-components %STRIP_COMPONENTS% -C "%OUT%" -xf -
 EXIT /b
 
 :NORMALIZE_PATH
